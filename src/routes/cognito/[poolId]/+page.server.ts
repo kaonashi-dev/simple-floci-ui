@@ -1,0 +1,125 @@
+import {
+	describeUserPool,
+	listUsers,
+	createUser,
+	deleteUser,
+	enableUser,
+	disableUser,
+	resetUserPassword,
+	listGroups,
+	createGroup,
+	deleteGroup
+} from '$lib/server/cognito';
+import { fail } from '@sveltejs/kit';
+
+export async function load({ params }) {
+	const poolId = decodeURIComponent(params.poolId);
+	try {
+		const [pool, users, groups] = await Promise.all([
+			describeUserPool(poolId),
+			listUsers(poolId),
+			listGroups(poolId)
+		]);
+		return { pool, users, groups, poolId, error: null };
+	} catch (e) {
+		return {
+			pool: null,
+			users: [],
+			groups: [],
+			poolId,
+			error: String(e)
+		};
+	}
+}
+
+export const actions = {
+	createUser: async ({ request, params }) => {
+		const poolId = decodeURIComponent(params.poolId);
+		const data = await request.formData();
+		const username = (data.get('username') as string)?.trim();
+		const email = (data.get('email') as string)?.trim();
+		const tempPassword = (data.get('tempPassword') as string)?.trim();
+		if (!username || !email || !tempPassword)
+			return fail(400, { actionError: 'Username, email and password are required', action: 'user' });
+		try {
+			await createUser(poolId, username, email, tempPassword);
+			return { success: `User ${username} created`, action: 'user' };
+		} catch (e) {
+			return fail(500, { actionError: String(e), action: 'user' });
+		}
+	},
+
+	deleteUser: async ({ request, params }) => {
+		const poolId = decodeURIComponent(params.poolId);
+		const data = await request.formData();
+		const username = data.get('username') as string;
+		try {
+			await deleteUser(poolId, username);
+			return { success: `User ${username} deleted`, action: 'user' };
+		} catch (e) {
+			return fail(500, { actionError: String(e), action: 'user' });
+		}
+	},
+
+	enableUser: async ({ request, params }) => {
+		const poolId = decodeURIComponent(params.poolId);
+		const data = await request.formData();
+		const username = data.get('username') as string;
+		try {
+			await enableUser(poolId, username);
+			return { success: `User ${username} enabled`, action: 'user' };
+		} catch (e) {
+			return fail(500, { actionError: String(e), action: 'user' });
+		}
+	},
+
+	disableUser: async ({ request, params }) => {
+		const poolId = decodeURIComponent(params.poolId);
+		const data = await request.formData();
+		const username = data.get('username') as string;
+		try {
+			await disableUser(poolId, username);
+			return { success: `User ${username} disabled`, action: 'user' };
+		} catch (e) {
+			return fail(500, { actionError: String(e), action: 'user' });
+		}
+	},
+
+	resetPassword: async ({ request, params }) => {
+		const poolId = decodeURIComponent(params.poolId);
+		const data = await request.formData();
+		const username = data.get('username') as string;
+		try {
+			await resetUserPassword(poolId, username);
+			return { success: `Password reset for ${username}`, action: 'user' };
+		} catch (e) {
+			return fail(500, { actionError: String(e), action: 'user' });
+		}
+	},
+
+	createGroup: async ({ request, params }) => {
+		const poolId = decodeURIComponent(params.poolId);
+		const data = await request.formData();
+		const name = (data.get('name') as string)?.trim();
+		const description = (data.get('description') as string)?.trim();
+		if (!name) return fail(400, { actionError: 'Group name is required', action: 'group' });
+		try {
+			await createGroup(poolId, name, description);
+			return { success: `Group ${name} created`, action: 'group' };
+		} catch (e) {
+			return fail(500, { actionError: String(e), action: 'group' });
+		}
+	},
+
+	deleteGroup: async ({ request, params }) => {
+		const poolId = decodeURIComponent(params.poolId);
+		const data = await request.formData();
+		const name = data.get('name') as string;
+		try {
+			await deleteGroup(poolId, name);
+			return { success: `Group ${name} deleted`, action: 'group' };
+		} catch (e) {
+			return fail(500, { actionError: String(e), action: 'group' });
+		}
+	}
+};
