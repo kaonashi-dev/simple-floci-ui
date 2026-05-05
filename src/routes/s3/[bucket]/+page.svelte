@@ -26,26 +26,37 @@
 				{totalItems} item{totalItems !== 1 ? 's' : ''}
 			</p>
 		</div>
-		<form
-			method="POST"
-			action="?/uploadObject&prefix={encodeURIComponent(data.prefix)}"
-			enctype="multipart/form-data"
-			use:enhance
-		>
-			<input
-				bind:this={fileInput}
-				type="file"
-				name="file"
-				class="hidden"
-				onchange={(e) => e.currentTarget.form?.requestSubmit()}
-			/>
-			<Button type="button" size="sm" onclick={() => fileInput.click()}>
-				<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-					<path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-				</svg>
-				Upload File
-			</Button>
-		</form>
+		<div class="flex items-center gap-2">
+			<form method="POST" action="?/setCors" use:enhance>
+				<Button type="submit" size="sm" variant={data.corsConfigured ? 'outline' : 'ghost'}
+					class={data.corsConfigured ? 'h-8 text-xs text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10' : 'h-8 text-xs text-muted-foreground'}>
+					<svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+					</svg>
+					{data.corsConfigured ? 'CORS ✓' : 'Set CORS'}
+				</Button>
+			</form>
+			<form
+				method="POST"
+				action="?/uploadObject&prefix={encodeURIComponent(data.prefix)}"
+				enctype="multipart/form-data"
+				use:enhance
+			>
+				<input
+					bind:this={fileInput}
+					type="file"
+					name="file"
+					class="hidden"
+					onchange={(e) => e.currentTarget.form?.requestSubmit()}
+				/>
+				<Button type="button" size="sm" onclick={() => fileInput.click()}>
+					<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+					</svg>
+					Upload File
+				</Button>
+			</form>
+		</div>
 	</div>
 
 	{#if data.error}

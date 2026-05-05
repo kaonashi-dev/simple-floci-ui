@@ -23,6 +23,10 @@
 			<p class="mt-0.5 text-sm text-muted-foreground">
 				{data.pools.length} pool{data.pools.length !== 1 ? 's' : ''}
 			</p>
+			<div class="mt-1.5 flex items-center gap-1">
+				<code class="font-mono text-xs text-muted-foreground">{data.endpoint}</code>
+				<CopyButton text={data.endpoint} />
+			</div>
 		</div>
 		<Button size="sm" onclick={() => (showCreate = !showCreate)}>
 			<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">

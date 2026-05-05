@@ -7,7 +7,9 @@ import {
 	PutObjectCommand,
 	GetObjectCommand,
 	DeleteObjectCommand,
-	HeadObjectCommand
+	HeadObjectCommand,
+	GetBucketCorsCommand,
+	PutBucketCorsCommand
 } from '@aws-sdk/client-s3';
 import { awsConfig } from './aws';
 import type {
@@ -114,6 +116,36 @@ export async function getObject(bucket: string, key: string): Promise<S3Download
 export async function deleteObject(bucket: string, key: string): Promise<void> {
 	const s3 = client();
 	await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+}
+
+export async function getBucketCors(bucket: string): Promise<boolean> {
+	const s3 = client();
+	try {
+		await s3.send(new GetBucketCorsCommand({ Bucket: bucket }));
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+export async function putBucketCorsAllowAll(bucket: string): Promise<void> {
+	const s3 = client();
+	await s3.send(
+		new PutBucketCorsCommand({
+			Bucket: bucket,
+			CORSConfiguration: {
+				CORSRules: [
+					{
+						AllowedHeaders: ['*'],
+						AllowedMethods: ['GET', 'PUT', 'POST', 'DELETE', 'HEAD'],
+						AllowedOrigins: ['*'],
+						ExposeHeaders: ['ETag'],
+						MaxAgeSeconds: 3000
+					}
+				]
+			}
+		})
+	);
 }
 
 export async function headObject(bucket: string, key: string): Promise<S3ObjectMetadata> {

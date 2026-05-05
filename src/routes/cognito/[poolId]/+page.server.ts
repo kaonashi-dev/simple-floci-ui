@@ -2,10 +2,12 @@ import {
 	describeUserPool,
 	listUsers,
 	createUser,
+	updateUserAttributes,
 	deleteUser,
 	enableUser,
 	disableUser,
 	resetUserPassword,
+	setUserPassword,
 	listGroups,
 	createGroup,
 	deleteGroup
@@ -44,6 +46,20 @@ export const actions = {
 		try {
 			await createUser(poolId, username, email, tempPassword);
 			return { success: `User ${username} created`, action: 'user' };
+		} catch (e) {
+			return fail(500, { actionError: String(e), action: 'user' });
+		}
+	},
+
+	updateUser: async ({ request, params }) => {
+		const poolId = decodeURIComponent(params.poolId);
+		const data = await request.formData();
+		const username = data.get('username') as string;
+		const email = (data.get('email') as string)?.trim();
+		if (!email) return fail(400, { actionError: 'Email is required', action: 'user' });
+		try {
+			await updateUserAttributes(poolId, username, { email });
+			return { success: `User ${username} updated`, action: 'user' };
 		} catch (e) {
 			return fail(500, { actionError: String(e), action: 'user' });
 		}
@@ -92,6 +108,21 @@ export const actions = {
 		try {
 			await resetUserPassword(poolId, username);
 			return { success: `Password reset for ${username}`, action: 'user' };
+		} catch (e) {
+			return fail(500, { actionError: String(e), action: 'user' });
+		}
+	},
+
+	setPassword: async ({ request, params }) => {
+		const poolId = decodeURIComponent(params.poolId);
+		const data = await request.formData();
+		const username = data.get('username') as string;
+		const password = (data.get('password') as string)?.trim();
+		const permanent = data.get('permanent') === 'true';
+		if (!password) return fail(400, { actionError: 'Password is required', action: 'user' });
+		try {
+			await setUserPassword(poolId, username, password, permanent);
+			return { success: `Password updated for ${username}`, action: 'user' };
 		} catch (e) {
 			return fail(500, { actionError: String(e), action: 'user' });
 		}

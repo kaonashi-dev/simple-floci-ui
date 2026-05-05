@@ -1,4 +1,4 @@
-import { listObjects, uploadObject, deleteObject } from '$lib/server/s3';
+import { listObjects, uploadObject, deleteObject, getBucketCors, putBucketCorsAllowAll } from '$lib/server/s3';
 import { fail } from '@sveltejs/kit';
 
 export async function load({ params, url }) {
@@ -6,13 +6,17 @@ export async function load({ params, url }) {
 	const prefix = url.searchParams.get('prefix') ?? '';
 
 	try {
-		const listing = await listObjects(bucket, prefix);
-		return { listing, bucket, prefix, error: null };
+		const [listing, corsConfigured] = await Promise.all([
+			listObjects(bucket, prefix),
+			getBucketCors(bucket)
+		]);
+		return { listing, bucket, prefix, corsConfigured, error: null };
 	} catch (e) {
 		return {
 			listing: { bucket, prefix, folders: [], files: [] },
 			bucket,
 			prefix,
+			corsConfigured: false,
 			error: String(e)
 		};
 	}
@@ -32,6 +36,16 @@ export const actions = {
 			const buffer = Buffer.from(await file.arrayBuffer());
 			await uploadObject(bucket, key, buffer, file.type || undefined);
 			return { success: `Uploaded ${file.name}` };
+		} catch (e) {
+			return fail(500, { actionError: String(e) });
+		}
+	},
+
+	setCors: async ({ params }) => {
+		const bucket = decodeURIComponent(params.bucket);
+		try {
+			await putBucketCorsAllowAll(bucket);
+			return { success: 'CORS configured — all origins allowed' };
 		} catch (e) {
 			return fail(500, { actionError: String(e) });
 		}

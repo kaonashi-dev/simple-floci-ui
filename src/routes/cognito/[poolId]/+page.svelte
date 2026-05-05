@@ -20,6 +20,8 @@
 	let showCreateGroup = $state(false);
 	let confirmDeleteUser: string | null = $state(null);
 	let confirmDeleteGroup: string | null = $state(null);
+	let editUser: { username: string; email: string } | null = $state(null);
+	let setPasswordUser: string | null = $state(null);
 
 	function userStatusVariant(status?: string) {
 		if (status === 'CONFIRMED') return 'default';
@@ -134,7 +136,7 @@
 				<form
 					method="POST"
 					action="?/createUser"
-					use:enhance={() => () => { showCreateUser = false; }}
+					use:enhance={() => async ({ update }) => { showCreateUser = false; await update(); }}
 					class="grid grid-cols-3 items-end gap-2 rounded border border-border bg-card p-4"
 				>
 					<div class="space-y-1.5">
@@ -164,6 +166,7 @@
 						<Table.Header>
 							<Table.Row class="border-b border-border bg-muted/30 hover:bg-muted/30">
 								<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Username</Table.Head>
+								<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">ID (sub)</Table.Head>
 								<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Email</Table.Head>
 								<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Status</Table.Head>
 								<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Enabled</Table.Head>
@@ -175,6 +178,16 @@
 							{#each data.users as user}
 								<Table.Row class="border-b border-border/50 last:border-0 hover:bg-muted/20">
 									<Table.Cell class="font-medium">{user.username}</Table.Cell>
+									<Table.Cell>
+										{#if user.attributes['sub']}
+											<div class="flex items-center gap-1">
+												<code class="font-mono text-xs text-muted-foreground">{user.attributes['sub']}</code>
+												<CopyButton text={user.attributes['sub']} />
+											</div>
+										{:else}
+											<span class="text-sm text-muted-foreground">—</span>
+										{/if}
+									</Table.Cell>
 									<Table.Cell class="text-sm text-muted-foreground">{user.email ?? '—'}</Table.Cell>
 									<Table.Cell>
 										<span class={cn('rounded border px-1.5 py-0.5 font-mono text-[10px]', userStatusColor(user.status))}>
@@ -191,6 +204,22 @@
 									<Table.Cell class="text-sm text-muted-foreground">{formatDate(user.createdAt)}</Table.Cell>
 									<Table.Cell class="text-right">
 										<div class="flex items-center justify-end gap-1">
+											<Button
+												variant="ghost"
+												size="sm"
+												class="h-7 px-2 text-xs"
+												onclick={() => (editUser = { username: user.username, email: user.email ?? '' })}
+											>
+												Edit
+											</Button>
+											<Button
+												variant="ghost"
+												size="sm"
+												class="h-7 px-2 text-xs"
+												onclick={() => (setPasswordUser = user.username)}
+											>
+												Set PWD
+											</Button>
 											{#if user.enabled}
 												<form method="POST" action="?/disableUser" use:enhance>
 													<input type="hidden" name="username" value={user.username} />
@@ -242,7 +271,7 @@
 				<form
 					method="POST"
 					action="?/createGroup"
-					use:enhance={() => () => { showCreateGroup = false; }}
+					use:enhance={() => async ({ update }) => { showCreateGroup = false; await update(); }}
 					class="grid grid-cols-2 items-end gap-2 rounded border border-border bg-card p-4"
 				>
 					<div class="space-y-1.5">
@@ -299,6 +328,61 @@
 	{/if}
 </div>
 
+<!-- Set password dialog -->
+<Dialog.Root open={!!setPasswordUser} onOpenChange={(o) => { if (!o) setPasswordUser = null; }}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Set password</Dialog.Title>
+			<Dialog.Description>
+				Set a new password directly for <strong>{setPasswordUser}</strong>. Useful in local environments where emails don't arrive.
+			</Dialog.Description>
+		</Dialog.Header>
+		<form
+			method="POST"
+			action="?/setPassword"
+			use:enhance={() => async ({ update }) => { setPasswordUser = null; await update(); }}
+			class="space-y-4 pt-2"
+		>
+			<input type="hidden" name="username" value={setPasswordUser} />
+			<input type="hidden" name="permanent" value="true" />
+			<div class="space-y-1.5">
+				<Label for="set-pwd" class="text-xs">New password</Label>
+				<Input id="set-pwd" name="password" type="password" placeholder="NewPass@123" required class="h-8 text-sm" />
+			</div>
+			<Dialog.Footer>
+				<Button type="button" variant="outline" onclick={() => (setPasswordUser = null)}>Cancel</Button>
+				<Button type="submit">Set Password</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
+<!-- Edit user dialog -->
+<Dialog.Root open={!!editUser} onOpenChange={(o) => { if (!o) editUser = null; }}>
+	<Dialog.Content>
+		<Dialog.Header>
+			<Dialog.Title>Edit user</Dialog.Title>
+			<Dialog.Description>Update attributes for <strong>{editUser?.username}</strong>.</Dialog.Description>
+		</Dialog.Header>
+		<form
+			method="POST"
+			action="?/updateUser"
+			use:enhance={() => async ({ update }) => { editUser = null; await update(); }}
+			class="space-y-4 pt-2"
+		>
+			<input type="hidden" name="username" value={editUser?.username} />
+			<div class="space-y-1.5">
+				<Label for="edit-email" class="text-xs">Email</Label>
+				<Input id="edit-email" name="email" type="email" value={editUser?.email} required class="h-8 text-sm" />
+			</div>
+			<Dialog.Footer>
+				<Button type="button" variant="outline" onclick={() => (editUser = null)}>Cancel</Button>
+				<Button type="submit">Save</Button>
+			</Dialog.Footer>
+		</form>
+	</Dialog.Content>
+</Dialog.Root>
+
 <!-- Delete user dialog -->
 <Dialog.Root open={!!confirmDeleteUser} onOpenChange={(o) => { if (!o) confirmDeleteUser = null; }}>
 	<Dialog.Content>
@@ -310,7 +394,7 @@
 		</Dialog.Header>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (confirmDeleteUser = null)}>Cancel</Button>
-			<form method="POST" action="?/deleteUser" use:enhance={() => () => { confirmDeleteUser = null; }}>
+			<form method="POST" action="?/deleteUser" use:enhance={() => async ({ update }) => { confirmDeleteUser = null; await update(); }}>
 				<input type="hidden" name="username" value={confirmDeleteUser} />
 				<Button type="submit" variant="destructive">Delete User</Button>
 			</form>
@@ -329,7 +413,7 @@
 		</Dialog.Header>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (confirmDeleteGroup = null)}>Cancel</Button>
-			<form method="POST" action="?/deleteGroup" use:enhance={() => () => { confirmDeleteGroup = null; }}>
+			<form method="POST" action="?/deleteGroup" use:enhance={() => async ({ update }) => { confirmDeleteGroup = null; await update(); }}>
 				<input type="hidden" name="name" value={confirmDeleteGroup} />
 				<Button type="submit" variant="destructive">Delete Group</Button>
 			</form>

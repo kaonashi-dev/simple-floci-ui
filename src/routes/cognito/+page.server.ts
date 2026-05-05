@@ -1,12 +1,13 @@
 import { listUserPools, createUserPool, deleteUserPool } from '$lib/server/cognito';
+import { awsConfig } from '$lib/server/aws';
 import { fail } from '@sveltejs/kit';
 
 export async function load() {
 	try {
 		const pools = await listUserPools();
-		return { pools, error: null };
+		return { pools, endpoint: awsConfig.endpoint, error: null };
 	} catch (e) {
-		return { pools: [], error: String(e) };
+		return { pools: [], endpoint: awsConfig.endpoint, error: String(e) };
 	}
 }
 
