@@ -16,35 +16,36 @@
 	let showAddAlias = $state(false);
 	let confirmDeleteAlias: string | null = $state(null);
 
-	function stateColor(state?: string) {
-		if (state === 'Enabled') return 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
+	function stateClass(state?: string) {
+		if (state === 'Enabled') return 'text-emerald-600 border-emerald-500/30 bg-emerald-500/10 dark:text-emerald-400';
 		if (state === 'Disabled') return 'text-muted-foreground border-border bg-muted/30';
-		if (state === 'PendingDeletion') return 'text-red-400 border-red-500/30 bg-red-500/10';
+		if (state === 'PendingDeletion') return 'text-red-600 border-red-500/30 bg-red-500/10 dark:text-red-400';
 		return 'text-muted-foreground border-border';
 	}
 </script>
 
 <div class="mx-auto w-full max-w-6xl space-y-6 animate-fade-in-up">
+	<!-- Header -->
 	<div>
-		<nav class="mb-2 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-			<a href="/kms" class="rounded-md px-1.5 py-1 transition-colors hover:bg-muted hover:text-foreground">KMS</a>
+		<nav class="mb-1.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+			<a href="/kms" class="rounded px-1.5 py-1 transition-colors hover:bg-muted hover:text-foreground">KMS</a>
 			<svg class="h-3 w-3 text-border" fill="none" viewBox="0 0 6 10" stroke="currentColor" stroke-width="1.5">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M1 1l4 4-4 4" />
 			</svg>
 			<code class="truncate font-medium text-foreground">{data.keyId}</code>
 		</nav>
 
-		<div class="flex flex-wrap items-center gap-3">
-			<h1 class="truncate font-mono text-xl font-semibold tracking-tight sm:text-2xl">{data.keyId}</h1>
+		<div class="flex flex-wrap items-center gap-2.5">
+			<h1 class="truncate font-mono text-xl font-semibold tracking-tight">{data.keyId}</h1>
 			{#if data.key}
-				<span class={cn('rounded border px-2 py-0.5 font-mono text-xs', stateColor(data.key.keyState))}>
+				<span class={cn('console-tag', stateClass(data.key.keyState))}>
 					{data.key.keyState}
 				</span>
 			{/if}
 		</div>
 
 		{#if data.key?.keyArn}
-			<div class="mt-2 flex max-w-full items-center gap-1.5">
+			<div class="mt-1.5 flex items-center gap-1.5">
 				<code class="truncate font-mono text-xs text-muted-foreground">{data.key.keyArn}</code>
 				<CopyButton text={data.key.keyArn} />
 			</div>
@@ -61,7 +62,7 @@
 
 	{#if data.key}
 		<!-- Metadata grid -->
-		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+		<div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
 			{#each [
 				{ label: 'Key Usage', value: data.key.keyUsage?.replace(/_/g, ' ') ?? '—' },
 				{ label: 'Key Spec', value: data.key.keySpec ?? '—' },
@@ -71,7 +72,7 @@
 				{ label: 'Deletion Date', value: data.key.deletionDate ? formatDate(data.key.deletionDate) : '—' }
 			] as item}
 				<div class="console-surface p-3">
-					<p class="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">{item.label}</p>
+					<p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">{item.label}</p>
 					<p class="mt-1 font-mono text-sm text-foreground">{item.value}</p>
 				</div>
 			{/each}
@@ -79,7 +80,7 @@
 
 		{#if data.key.description}
 			<div class="console-surface p-3">
-				<p class="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">Description</p>
+				<p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Description</p>
 				<p class="mt-1 text-sm text-foreground">{data.key.description}</p>
 			</div>
 		{/if}
@@ -88,7 +89,7 @@
 
 		<!-- Aliases -->
 		<div class="space-y-3">
-			<div class="console-action-row">
+			<div class="page-header">
 				<h2 class="text-sm font-semibold">Aliases</h2>
 				<Button size="sm" variant="outline" onclick={() => (showAddAlias = !showAddAlias)}>
 					Add Alias
@@ -168,9 +169,9 @@
 
 		<div class="h-px bg-border"></div>
 
-		<!-- Enable / disable / schedule deletion -->
-		<div class="rounded-xl border border-destructive/20 bg-destructive/5 p-4 space-y-3 shadow-[var(--shadow-sm)]">
-			<p class="text-sm font-medium text-foreground">Danger Zone</p>
+		<!-- Danger zone -->
+		<div class="rounded border border-destructive/20 bg-destructive/5 p-4 space-y-3">
+			<p class="text-sm font-medium">Danger Zone</p>
 			<div class="flex flex-wrap items-center gap-2">
 				{#if data.key.keyState === 'Enabled'}
 					<form method="POST" action="?/disable" use:enhance>
@@ -189,7 +190,7 @@
 						<Button type="submit" variant="outline" size="sm">Cancel Scheduled Deletion</Button>
 					</form>
 					{#if data.key.deletionDate}
-						<span class="text-xs text-red-400">Deletes {formatDate(data.key.deletionDate)}</span>
+						<span class="text-xs text-red-500">Deletes {formatDate(data.key.deletionDate)}</span>
 					{/if}
 				{:else}
 					<Button

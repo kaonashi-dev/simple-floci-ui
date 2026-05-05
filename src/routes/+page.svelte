@@ -1,92 +1,90 @@
 <script lang="ts">
-	import ArrowUpRightIcon from '@lucide/svelte/icons/arrow-up-right';
+	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
 	import DatabaseIcon from '@lucide/svelte/icons/database';
 	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
 	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
+	import RadioTowerIcon from '@lucide/svelte/icons/radio-tower';
+	import SigmaIcon from '@lucide/svelte/icons/sigma';
 	import ShieldAlertIcon from '@lucide/svelte/icons/shield-alert';
 	import UsersRoundIcon from '@lucide/svelte/icons/users-round';
 	import ZapIcon from '@lucide/svelte/icons/zap';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
 
 	let { data } = $props();
 
 	const services = $derived([
 		{
 			href: '/sqs',
-			label: 'SQS Queues',
+			label: 'SQS',
+			subtitle: 'Simple Queue Service',
 			description: 'Inspect message flow and queue depth.',
 			count: data.sqsCount,
 			error: data.sqsError,
+			unit: 'queue',
 			icon: MessageSquareIcon
 		},
 		{
 			href: '/s3',
-			label: 'S3 Buckets',
-			description: 'Browse objects, prefixes, uploads, and downloads.',
+			label: 'S3',
+			subtitle: 'Simple Storage Service',
+			description: 'Browse objects, prefixes, and uploads.',
 			count: data.s3Count,
 			error: data.s3Error,
+			unit: 'bucket',
 			icon: HardDriveIcon
 		},
 		{
 			href: '/cognito',
-			label: 'Cognito Pools',
+			label: 'Cognito',
+			subtitle: 'Identity Provider',
 			description: 'Manage local users, groups, and identities.',
 			count: data.cognitoCount,
 			error: data.cognitoError,
+			unit: 'pool',
 			icon: UsersRoundIcon
 		},
 		{
 			href: '/kms',
-			label: 'KMS Keys',
+			label: 'KMS',
+			subtitle: 'Key Management Service',
 			description: 'Review keys, aliases, and rotation settings.',
 			count: data.kmsCount,
 			error: data.kmsError,
+			unit: 'key',
 			icon: KeyRoundIcon
 		}
 	]);
+
+	const upcoming = [
+		{ label: 'DynamoDB', icon: DatabaseIcon },
+		{ label: 'Lambda', icon: SigmaIcon },
+		{ label: 'SNS', icon: RadioTowerIcon }
+	];
 </script>
 
-<div class="mx-auto flex w-full max-w-7xl flex-col gap-6 animate-fade-in-up">
-	<section class="console-panel overflow-hidden">
-		<div class="grid gap-0 lg:grid-cols-[1.5fr_0.8fr]">
-			<div class="p-5 sm:p-7 lg:p-8">
-				<p class="console-subtle-label">Floci local cloud</p>
-				<div class="mt-4 max-w-3xl space-y-3">
-					<h1 class="console-heading">Operational view for local AWS resources.</h1>
-					<p class="text-sm leading-6 text-muted-foreground sm:text-base">
-						Navigate the services that matter during development: queues, buckets, users, and encryption keys.
-						The layout keeps high-signal actions close while preserving a clean AWS-console workflow.
-					</p>
-				</div>
+<div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
+	<!-- Page header -->
+	<div class="page-header">
+		<div>
+			<p class="console-subtle-label">Overview</p>
+			<h1 class="mt-1.5 page-title">Local AWS Console</h1>
+			<p class="mt-1 page-subtitle">Operational view for Floci local cloud resources.</p>
+		</div>
 
-				<div class="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-					<Button href="/sqs">Open SQS</Button>
-					<Button href="/s3" variant="outline">Browse S3</Button>
-				</div>
-			</div>
-
-			<div class="border-t border-border/80 bg-muted/35 p-5 sm:p-7 lg:border-l lg:border-t-0">
-				<p class="console-subtle-label">Endpoint</p>
-				<code class="mt-3 block overflow-hidden text-ellipsis rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs text-muted-foreground">
-					{data.connection.endpoint}
-				</code>
-				<div class="mt-5 flex items-center gap-3 rounded-xl border border-border bg-background p-3">
-					<span class="flex size-10 items-center justify-center rounded-lg bg-muted">
-						<ZapIcon class="size-5 {data.connection.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}" />
-					</span>
-					<div>
-						<p class="text-sm font-semibold">{data.connection.ok ? 'Connected' : 'Disconnected'}</p>
-						<p class="text-xs text-muted-foreground">{data.connection.ok ? 'Local AWS endpoint is reachable.' : 'Start LocalStack or the Floci container.'}</p>
-					</div>
-				</div>
+		<!-- Connection status card -->
+		<div class="console-panel flex min-w-64 items-center gap-3 p-3">
+			<span class="flex size-8 shrink-0 items-center justify-center rounded border border-border bg-muted/50">
+				<ZapIcon class="size-4 {data.connection.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}" />
+			</span>
+			<div class="min-w-0">
+				<p class="text-sm font-medium leading-none">{data.connection.ok ? 'Connected' : 'Disconnected'}</p>
+				<code class="mt-1 block truncate font-mono text-[11px] text-muted-foreground">{data.connection.endpoint}</code>
 			</div>
 		</div>
-	</section>
+	</div>
 
 	{#if !data.connection.ok}
-		<div class="flex items-start gap-3 rounded-xl border border-destructive/25 bg-destructive/8 px-4 py-3 shadow-[var(--shadow-sm)]">
+		<div class="flex items-start gap-3 rounded border border-destructive/30 bg-destructive/8 px-4 py-3">
 			<ShieldAlertIcon class="mt-0.5 size-4 shrink-0 text-destructive" />
 			<div class="min-w-0">
 				<p class="text-sm font-medium text-destructive">Floci is not reachable</p>
@@ -95,70 +93,84 @@
 		</div>
 	{/if}
 
-	<section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-		{#each services as service}
-			{@const Icon = service.icon}
-			<Card.Root class="group relative min-h-56 transition-all hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-[var(--shadow-md)]">
-				<Card.Header class="space-y-0 px-5 pb-0">
-					<div class="flex items-start justify-between gap-3">
-						<span class="flex size-11 items-center justify-center rounded-xl border border-border bg-muted/55 text-primary transition-colors group-hover:bg-accent">
-							<Icon class="size-5" />
-						</span>
-						{#if service.error}
-							<span class="rounded-full border border-destructive/25 bg-destructive/10 px-2 py-0.5 font-mono text-[10px] font-medium text-destructive">error</span>
-						{:else}
-							<ArrowUpRightIcon class="size-4 text-muted-foreground/40 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary" />
-						{/if}
-					</div>
-				</Card.Header>
-				<Card.Content class="flex flex-1 flex-col px-5 pb-5 pt-5">
-					<p class="font-mono text-4xl font-semibold tracking-tight tabular-nums text-foreground">{service.count ?? '—'}</p>
-					<div class="mt-4">
-						<a href={service.href} class="text-base font-semibold text-foreground transition-colors hover:text-primary">{service.label}</a>
-						<p class="mt-1 text-sm leading-5 text-muted-foreground">{service.description}</p>
-					</div>
-					<Button href={service.href} variant="ghost" size="sm" class="mt-auto w-fit px-0 text-primary hover:bg-transparent hover:text-primary/80">
-						Open service
-						<ArrowUpRightIcon class="size-3.5" />
-					</Button>
-				</Card.Content>
-			</Card.Root>
-		{/each}
-	</section>
-
-	<section class="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_0.7fr]">
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>Console Flow</Card.Title>
-				<Card.Description>Optimized for quick local debugging without leaving the browser.</Card.Description>
-			</Card.Header>
-			<Card.Content>
-				<div class="grid gap-3 sm:grid-cols-3">
-					{#each ['Inspect resource state', 'Act with safe controls', 'Copy IDs and endpoints'] as item, i}
-						<div class="rounded-xl border border-border bg-muted/35 p-4">
-							<p class="font-mono text-xs text-primary">0{i + 1}</p>
-							<p class="mt-2 text-sm font-medium text-foreground">{item}</p>
-						</div>
+	<!-- Services grid -->
+	<div>
+		<h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">Available Services</h2>
+		<div class="console-table-shell">
+			<table class="w-full text-sm">
+				<thead>
+					<tr class="border-b border-border">
+						<th class="table-th">Service</th>
+						<th class="table-th">Description</th>
+						<th class="table-th-right">Resources</th>
+						<th class="table-th-right w-24">Status</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each services as service}
+						{@const Icon = service.icon}
+						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
+							<td class="px-4 py-3">
+								<div class="flex items-center gap-2.5">
+									<span class="flex size-7 shrink-0 items-center justify-center rounded border border-border bg-muted/50">
+										<Icon class="size-3.5 text-primary" />
+									</span>
+									<div>
+										<a href={service.href} class="font-medium text-foreground transition-colors hover:text-primary leading-none">
+											{service.label}
+										</a>
+										<p class="mt-0.5 text-xs text-muted-foreground leading-none">{service.subtitle}</p>
+									</div>
+								</div>
+							</td>
+							<td class="px-4 py-3 text-sm text-muted-foreground">{service.description}</td>
+							<td class="px-4 py-3 text-right font-mono tabular-nums">
+								{#if service.error}
+									<span class="console-tag border-destructive/30 text-destructive bg-destructive/8">error</span>
+								{:else if service.count != null}
+									<span class="font-semibold text-foreground">{service.count}</span>
+									<span class="ml-1 text-xs text-muted-foreground">{service.count === 1 ? service.unit : service.unit + 's'}</span>
+								{:else}
+									<span class="text-muted-foreground/50">—</span>
+								{/if}
+							</td>
+							<td class="px-4 py-3 text-right">
+								<a href={service.href} class="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium">
+									Open
+									<ArrowRightIcon class="size-3" />
+								</a>
+							</td>
+						</tr>
 					{/each}
-				</div>
-			</Card.Content>
-		</Card.Root>
+				</tbody>
+			</table>
+		</div>
+	</div>
 
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>Coming Soon</Card.Title>
-				<Card.Description>Reserved navigation targets for the next local services.</Card.Description>
-			</Card.Header>
-			<Card.Content class="grid gap-2">
-				{#each [{ label: 'DynamoDB', icon: DatabaseIcon }, { label: 'Lambda', icon: ZapIcon }, { label: 'SNS', icon: MessageSquareIcon }] as service}
-					{@const Icon = service.icon}
-					<div class="flex items-center gap-3 rounded-xl border border-dashed border-border bg-muted/25 px-3 py-2.5 text-sm text-muted-foreground">
-						<Icon class="size-4" />
-						<span>{service.label}</span>
-						<span class="ml-auto rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px]">soon</span>
-					</div>
-				{/each}
-			</Card.Content>
-		</Card.Root>
-	</section>
+	<!-- Upcoming services -->
+	<div>
+		<h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">Upcoming Services</h2>
+		<div class="console-table-shell">
+			<table class="w-full text-sm">
+				<tbody>
+					{#each upcoming as service}
+						{@const Icon = service.icon}
+						<tr class="border-b border-border/40 last:border-0">
+							<td class="px-4 py-2.5">
+								<div class="flex items-center gap-2.5 text-muted-foreground/50">
+									<span class="flex size-7 shrink-0 items-center justify-center rounded border border-border/50 bg-muted/25">
+										<Icon class="size-3.5" />
+									</span>
+									<span>{service.label}</span>
+								</div>
+							</td>
+							<td class="px-4 py-2.5 text-right">
+								<span class="console-tag border-border/50 bg-muted/30 text-muted-foreground/50">soon</span>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	</div>
 </div>

@@ -12,51 +12,17 @@
 	import UsersRoundIcon from '@lucide/svelte/icons/users-round';
 
 	const links = [
-		{
-			href: '/',
-			label: 'Dashboard',
-			description: 'Overview',
-			icon: LayoutDashboardIcon
-		},
-		{
-			href: '/sqs',
-			label: 'SQS',
-			description: 'Queues',
-			icon: MessageSquareIcon
-		},
-		{
-			href: '/s3',
-			label: 'S3',
-			description: 'Buckets',
-			icon: HardDriveIcon
-		},
-		{
-			href: '/cognito',
-			label: 'Cognito',
-			description: 'Identity',
-			icon: UsersRoundIcon
-		},
-		{
-			href: '/kms',
-			label: 'KMS',
-			description: 'Keys',
-			icon: KeyRoundIcon
-		}
+		{ href: '/', label: 'Dashboard', icon: LayoutDashboardIcon },
+		{ href: '/sqs', label: 'SQS', icon: MessageSquareIcon },
+		{ href: '/s3', label: 'S3', icon: HardDriveIcon },
+		{ href: '/cognito', label: 'Cognito', icon: UsersRoundIcon },
+		{ href: '/kms', label: 'KMS', icon: KeyRoundIcon }
 	];
 
 	const disabled = [
-		{
-			label: 'DynamoDB',
-			icon: DatabaseIcon
-		},
-		{
-			label: 'Lambda',
-			icon: SigmaIcon
-		},
-		{
-			label: 'SNS',
-			icon: RadioTowerIcon
-		}
+		{ label: 'DynamoDB', icon: DatabaseIcon },
+		{ label: 'Lambda', icon: SigmaIcon },
+		{ label: 'SNS', icon: RadioTowerIcon }
 	];
 
 	let { onNavigate }: { onNavigate?: () => void } = $props();
@@ -67,53 +33,46 @@
 	}
 </script>
 
-<nav class="flex h-full w-72 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-3 py-4 text-sidebar-foreground shadow-[var(--shadow-lg)] lg:w-64 lg:shadow-none">
-	<div class="mb-4 rounded-xl border border-sidebar-border bg-sidebar-accent/45 p-3">
-		<div class="flex items-center gap-2 text-xs font-medium text-sidebar-foreground/90">
-			<BoxesIcon class="size-4 text-primary" />
-			AWS Local Services
+<nav class="flex h-full w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+	<!-- Brand info block -->
+	<div class="border-b border-sidebar-border px-4 py-3">
+		<div class="flex items-center gap-2 text-xs text-sidebar-foreground/70">
+			<BoxesIcon class="size-3.5 text-primary shrink-0" />
+			<span class="font-medium">AWS Local Services</span>
 		</div>
-		<p class="mt-1 text-[11px] leading-4 text-sidebar-foreground/55">Browse queues, buckets, identities, and keys in your Floci environment.</p>
 	</div>
 
-	<p class="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/45">Navigation</p>
+	<!-- Navigation -->
+	<div class="flex-1 overflow-y-auto px-2 py-3">
+		<p class="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/40">Services</p>
 
-	{#each links as link}
-		{@const Icon = link.icon}
-		<a
-			href={link.href}
-			onclick={onNavigate}
-			class={cn(
-				'group relative mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors',
-				isActive(link.href)
-					? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_3px_0_0_var(--sidebar-primary)]'
-					: 'text-sidebar-foreground/64 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground'
-			)}
-		>
-			<span class={cn('flex size-8 shrink-0 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar/70 transition-colors', isActive(link.href) && 'border-primary/35 bg-primary/15 text-primary')}>
-				<Icon class="size-4" />
-			</span>
-			<span class="min-w-0">
-				<span class="block font-medium">{link.label}</span>
-				<span class="block text-[11px] text-sidebar-foreground/42 group-hover:text-sidebar-foreground/60">{link.description}</span>
-			</span>
-			{#if isActive(link.href)}
-				<span class="ml-auto size-1.5 rounded-full bg-primary"></span>
-			{/if}
-		</a>
-	{/each}
+		{#each links as link}
+			{@const Icon = link.icon}
+			<a
+				href={link.href}
+				onclick={onNavigate}
+				class={cn(
+					'group flex items-center gap-2.5 rounded px-2 py-1.5 text-sm transition-colors mb-0.5',
+					isActive(link.href)
+						? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-[inset_2px_0_0_var(--sidebar-primary)]'
+						: 'text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+				)}
+			>
+				<Icon class={cn('size-4 shrink-0', isActive(link.href) ? 'text-primary' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80')} />
+				<span class="truncate">{link.label}</span>
+			</a>
+		{/each}
 
-	<div class="my-3 h-px bg-sidebar-border"></div>
-	<p class="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/35">Planned</p>
+		<div class="my-3 h-px bg-sidebar-border/70"></div>
+		<p class="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/30">Coming Soon</p>
 
-	{#each disabled as item}
-		{@const Icon = item.icon}
-		<div class="mb-1 flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-sidebar-foreground/28">
-			<span class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-sidebar-border/70 bg-sidebar/45">
-				<Icon class="size-4" />
-			</span>
-			<span>{item.label}</span>
-			<span class="ml-auto rounded-md border border-sidebar-border bg-sidebar-accent/30 px-1.5 py-0.5 font-mono text-[9px] text-sidebar-foreground/38">soon</span>
-		</div>
-	{/each}
+		{#each disabled as item}
+			{@const Icon = item.icon}
+			<div class="flex items-center gap-2.5 rounded px-2 py-1.5 text-sm text-sidebar-foreground/25 mb-0.5">
+				<Icon class="size-4 shrink-0" />
+				<span class="truncate">{item.label}</span>
+				<span class="ml-auto rounded border border-sidebar-border/50 px-1 py-px font-mono text-[9px] text-sidebar-foreground/30">soon</span>
+			</div>
+		{/each}
+	</div>
 </nav>

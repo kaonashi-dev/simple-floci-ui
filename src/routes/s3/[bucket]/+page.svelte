@@ -13,7 +13,6 @@
 	import FileTypeIcon from '@lucide/svelte/icons/file-type';
 	import FolderIcon from '@lucide/svelte/icons/folder';
 	import { Button } from '$lib/components/ui/button';
-	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
@@ -68,17 +67,17 @@
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
-	<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+	<div class="page-header">
 		<div class="space-y-1">
 			<Breadcrumbs bucket={data.bucket} prefix={data.prefix} />
-			<p class="text-sm text-muted-foreground">
-				{totalItems} item{totalItems !== 1 ? 's' : ''}
-			</p>
+			<p class="page-subtitle">{totalItems} item{totalItems !== 1 ? 's' : ''}</p>
 		</div>
 		<div class="flex flex-wrap items-center gap-2">
 			<form method="POST" action="?/setCors" use:enhance>
 				<Button type="submit" size="sm" variant={data.corsConfigured ? 'outline' : 'ghost'}
-					class={data.corsConfigured ? 'h-8 text-xs text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10' : 'h-8 text-xs text-muted-foreground'}>
+					class={data.corsConfigured
+						? 'h-8 text-xs text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 dark:text-emerald-400'
+						: 'h-8 text-xs text-muted-foreground'}>
 					<svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 						<path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
 					</svg>
@@ -117,7 +116,7 @@
 	{/if}
 
 	{#if form?.success}
-		<div class="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/8 px-4 py-2.5 text-sm text-emerald-600 shadow-[var(--shadow-sm)] dark:text-emerald-400">
+		<div class="flex items-center gap-2 rounded border border-emerald-500/20 bg-emerald-500/8 px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-400">
 			<svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
 			</svg>
@@ -129,61 +128,61 @@
 		<EmptyState title="Empty" description="Upload a file or navigate to a different prefix." />
 	{:else}
 		<div class="console-table-shell">
-			<Table.Root>
-				<Table.Header>
-					<Table.Row class="bg-muted/30 hover:bg-muted/30 border-b border-border">
-						<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Name</Table.Head>
-						<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Type</Table.Head>
-						<Table.Head class="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Size</Table.Head>
-						<Table.Head class="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Modified</Table.Head>
-						<Table.Head class="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Actions</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
+			<table class="w-full text-sm">
+				<thead>
+					<tr class="border-b border-border">
+						<th class="table-th">Name</th>
+						<th class="table-th w-24">Type</th>
+						<th class="table-th-right w-24">Size</th>
+						<th class="table-th-right w-36">Modified</th>
+						<th class="table-th-right w-44">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
 					{#each data.listing.folders as folder}
-						<Table.Row class="border-b border-border/50 last:border-0 hover:bg-muted/20">
-							<Table.Cell>
+						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
+							<td class="px-4 py-2.5">
 								<a
 									href="/s3/{encodeURIComponent(data.bucket)}?prefix={encodeURIComponent(folder.key)}"
-									class="flex items-center gap-2 font-medium hover:text-primary transition-colors"
+									class="flex items-center gap-2 font-medium text-foreground hover:text-primary transition-colors"
 								>
-									<span class="flex size-7 shrink-0 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300">
-										<FolderIcon class="size-4" />
+									<span class="flex size-6 shrink-0 items-center justify-center rounded border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300">
+										<FolderIcon class="size-3.5" />
 									</span>
 									{folder.name}
 								</a>
-							</Table.Cell>
-							<Table.Cell>
-								<span class="rounded bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">folder</span>
-							</Table.Cell>
-							<Table.Cell class="text-right font-mono text-xs text-muted-foreground">—</Table.Cell>
-							<Table.Cell class="text-right font-mono text-xs text-muted-foreground">—</Table.Cell>
-							<Table.Cell class="text-right">
+							</td>
+							<td class="px-4 py-2.5">
+								<span class="console-tag border-border/60 bg-muted/40 text-muted-foreground">folder</span>
+							</td>
+							<td class="px-4 py-2.5 text-right font-mono text-xs text-muted-foreground">—</td>
+							<td class="px-4 py-2.5 text-right font-mono text-xs text-muted-foreground">—</td>
+							<td class="px-4 py-2.5 text-right">
 								<CopyButton text={folder.key} label="Key" />
-							</Table.Cell>
-						</Table.Row>
+							</td>
+						</tr>
 					{/each}
 
 					{#each data.listing.files as file}
 						{@const meta = fileMeta(file.name)}
 						{@const Icon = meta.icon}
-						<Table.Row class="border-b border-border/50 last:border-0 hover:bg-muted/20">
-							<Table.Cell>
+						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
+							<td class="px-4 py-2.5">
 								<div class="flex items-center gap-2">
-									<span class="flex size-7 shrink-0 items-center justify-center rounded-lg border {meta.tone}">
-										<Icon class="size-4" />
+									<span class="flex size-6 shrink-0 items-center justify-center rounded border {meta.tone}">
+										<Icon class="size-3.5" />
 									</span>
 									<span class="max-w-[12rem] truncate font-medium sm:max-w-xs md:max-w-sm" title={file.name}>{file.name}</span>
 								</div>
-							</Table.Cell>
-							<Table.Cell>
-								<span class="rounded bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">{meta.label}</span>
-							</Table.Cell>
-							<Table.Cell class="text-right font-mono text-xs tabular-nums text-muted-foreground">
+							</td>
+							<td class="px-4 py-2.5">
+								<span class="console-tag border-border/60 bg-muted/40 text-muted-foreground">{meta.label}</span>
+							</td>
+							<td class="px-4 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground">
 								{file.size != null ? formatBytes(file.size) : '—'}
-							</Table.Cell>
-							<Table.Cell class="text-right font-mono text-xs text-muted-foreground">{formatDate(file.lastModified)}</Table.Cell>
-							<Table.Cell class="text-right">
+							</td>
+							<td class="px-4 py-2.5 text-right font-mono text-xs text-muted-foreground">{formatDate(file.lastModified)}</td>
+							<td class="px-4 py-2.5 text-right">
 								<div class="flex items-center justify-end gap-1">
 									<CopyButton text={file.key} label="Key" />
 									<Button
@@ -212,11 +211,11 @@
 										Delete
 									</Button>
 								</div>
-							</Table.Cell>
-						</Table.Row>
+							</td>
+						</tr>
 					{/each}
-				</Table.Body>
-			</Table.Root>
+				</tbody>
+			</table>
 		</div>
 	{/if}
 </div>

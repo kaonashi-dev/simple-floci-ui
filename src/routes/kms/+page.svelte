@@ -3,7 +3,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
@@ -17,29 +16,29 @@
 	let confirmSchedule: { keyId: string; aliases: string[] } | null = $state(null);
 	let scheduleDays = $state(7);
 
-	function stateColor(state?: string) {
-		if (state === 'Enabled') return 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
+	function stateClass(state?: string) {
+		if (state === 'Enabled') return 'text-emerald-600 border-emerald-500/30 bg-emerald-500/10 dark:text-emerald-400';
 		if (state === 'Disabled') return 'text-muted-foreground border-border bg-muted/30';
-		if (state === 'PendingDeletion') return 'text-red-400 border-red-500/30 bg-red-500/10';
+		if (state === 'PendingDeletion') return 'text-red-600 border-red-500/30 bg-red-500/10 dark:text-red-400';
 		return 'text-muted-foreground border-border';
 	}
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
-	<div class="console-action-row">
+	<div class="page-header">
 		<div>
 			<p class="console-subtle-label">Encryption</p>
-			<h1 class="console-heading mt-2">KMS Keys</h1>
-			<p class="mt-1 text-sm text-muted-foreground">
-				{data.keys.length} key{data.keys.length !== 1 ? 's' : ''}
-			</p>
+			<h1 class="mt-1.5 page-title">KMS Keys</h1>
+			<p class="mt-1 page-subtitle">{data.keys.length} key{data.keys.length !== 1 ? 's' : ''}</p>
 		</div>
-		<Button size="sm" onclick={() => (showCreate = !showCreate)}>
-			<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-			</svg>
-			Create Key
-		</Button>
+		<div class="flex items-center gap-2">
+			<Button size="sm" onclick={() => (showCreate = !showCreate)}>
+				<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+				</svg>
+				Create Key
+			</Button>
+		</div>
 	</div>
 
 	{#if data.error}
@@ -58,14 +57,12 @@
 			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
 		>
 			<div class="flex-1 space-y-1.5">
-				<Label for="key-desc">Description (optional)</Label>
-				<Input id="key-desc" name="description" placeholder="My encryption key" />
+				<Label for="key-desc" class="text-xs">Description (optional)</Label>
+				<Input id="key-desc" name="description" placeholder="My encryption key" class="h-8 text-sm" />
 			</div>
 			<div class="flex gap-2">
 				<Button type="submit" size="sm">Create</Button>
-				<Button type="button" variant="ghost" size="sm" onclick={() => (showCreate = false)}>
-					Cancel
-				</Button>
+				<Button type="button" variant="ghost" size="sm" onclick={() => (showCreate = false)}>Cancel</Button>
 			</div>
 		</form>
 	{/if}
@@ -74,24 +71,24 @@
 		<EmptyState title="No keys" description="Create a symmetric key to get started." />
 	{:else}
 		<div class="console-table-shell">
-			<Table.Root>
-				<Table.Header>
-					<Table.Row class="border-b border-border bg-muted/30 hover:bg-muted/30">
-						<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Key ID / Aliases</Table.Head>
-						<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">State</Table.Head>
-						<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Usage</Table.Head>
-						<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Rotation</Table.Head>
-						<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Created</Table.Head>
-						<Table.Head class="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Actions</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
+			<table class="w-full text-sm">
+				<thead>
+					<tr class="border-b border-border">
+						<th class="table-th">Key ID / Aliases</th>
+						<th class="table-th w-28">State</th>
+						<th class="table-th w-36">Usage</th>
+						<th class="table-th w-24">Rotation</th>
+						<th class="table-th w-36">Created</th>
+						<th class="table-th-right w-40">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
 					{#each data.keys as key}
-						<Table.Row class="border-b border-border/50 last:border-0 hover:bg-muted/20">
-							<Table.Cell>
+						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
+							<td class="px-4 py-3">
 								<div class="space-y-1">
 									<div class="flex items-center gap-1.5">
-										<a href="/kms/{encodeURIComponent(key.keyId)}" class="font-mono text-xs font-medium transition-colors hover:text-primary">
+										<a href="/kms/{encodeURIComponent(key.keyId)}" class="font-mono text-xs font-medium text-foreground transition-colors hover:text-primary">
 											{key.keyId}
 										</a>
 										<CopyButton text={key.keyId} />
@@ -99,7 +96,7 @@
 									{#if key.aliases.length > 0}
 										<div class="flex flex-wrap gap-1">
 											{#each key.aliases as alias}
-												<span class="rounded bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+												<span class="console-tag border-border/60 bg-muted/50 text-muted-foreground">
 													{alias.replace('alias/', '')}
 												</span>
 											{/each}
@@ -109,26 +106,26 @@
 										<p class="text-xs text-muted-foreground/60">{key.description}</p>
 									{/if}
 								</div>
-							</Table.Cell>
-							<Table.Cell>
-								<span class={cn('rounded border px-1.5 py-0.5 font-mono text-[10px]', stateColor(key.keyState))}>
+							</td>
+							<td class="px-4 py-3">
+								<span class={cn('console-tag', stateClass(key.keyState))}>
 									{key.keyState ?? '—'}
 								</span>
-							</Table.Cell>
-							<Table.Cell class="font-mono text-xs text-muted-foreground">
+							</td>
+							<td class="px-4 py-3 font-mono text-xs text-muted-foreground">
 								{key.keyUsage?.replace('_', ' ') ?? '—'}
-							</Table.Cell>
-							<Table.Cell>
+							</td>
+							<td class="px-4 py-3">
 								{#if key.rotationEnabled === true}
-									<span class="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[10px] text-emerald-400">on</span>
+									<span class="console-tag border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">on</span>
 								{:else if key.rotationEnabled === false}
-									<span class="rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground/60">off</span>
+									<span class="console-tag border-border text-muted-foreground/60">off</span>
 								{:else}
-									<span class="font-mono text-xs text-muted-foreground/40">—</span>
+									<span class="text-xs text-muted-foreground/40">—</span>
 								{/if}
-							</Table.Cell>
-							<Table.Cell class="font-mono text-xs text-muted-foreground">{formatDate(key.creationDate)}</Table.Cell>
-							<Table.Cell class="text-right">
+							</td>
+							<td class="px-4 py-3 font-mono text-xs text-muted-foreground">{formatDate(key.creationDate)}</td>
+							<td class="px-4 py-3 text-right">
 								<div class="flex items-center justify-end gap-1">
 									<Button variant="ghost" size="sm" class="h-7 px-2 text-xs" href="/kms/{encodeURIComponent(key.keyId)}">
 										Open
@@ -151,15 +148,15 @@
 											class="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
 											onclick={() => (confirmSchedule = { keyId: key.keyId, aliases: key.aliases })}
 										>
-											Schedule Delete
+											Delete
 										</Button>
 									{/if}
 								</div>
-							</Table.Cell>
-						</Table.Row>
+							</td>
+						</tr>
 					{/each}
-				</Table.Body>
-			</Table.Root>
+				</tbody>
+			</table>
 		</div>
 	{/if}
 </div>

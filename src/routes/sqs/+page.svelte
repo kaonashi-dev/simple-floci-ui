@@ -3,7 +3,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
@@ -17,20 +16,20 @@
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
-	<div class="console-action-row">
+	<div class="page-header">
 		<div>
 			<p class="console-subtle-label">Messaging</p>
-			<h1 class="console-heading mt-2">SQS Queues</h1>
-			<p class="mt-1 text-sm text-muted-foreground">
-				{data.queues.length} queue{data.queues.length !== 1 ? 's' : ''}
-			</p>
+			<h1 class="mt-1.5 page-title">SQS Queues</h1>
+			<p class="mt-1 page-subtitle">{data.queues.length} queue{data.queues.length !== 1 ? 's' : ''}</p>
 		</div>
-		<Button size="sm" onclick={() => (showCreate = !showCreate)}>
-			<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-			</svg>
-			Create Queue
-		</Button>
+		<div class="flex items-center gap-2">
+			<Button size="sm" onclick={() => (showCreate = !showCreate)}>
+				<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+				</svg>
+				Create Queue
+			</Button>
+		</div>
 	</div>
 
 	{#if data.error}
@@ -49,14 +48,12 @@
 			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
 		>
 			<div class="flex-1 space-y-1.5">
-				<Label for="queue-name">Queue name</Label>
-				<Input id="queue-name" name="name" placeholder="my-queue" required />
+				<Label for="queue-name" class="text-xs">Queue name</Label>
+				<Input id="queue-name" name="name" placeholder="my-queue" required class="h-8 text-sm" />
 			</div>
 			<div class="flex gap-2">
 				<Button type="submit" size="sm">Create</Button>
-				<Button type="button" variant="ghost" size="sm" onclick={() => (showCreate = false)}>
-					Cancel
-				</Button>
+				<Button type="button" variant="ghost" size="sm" onclick={() => (showCreate = false)}>Cancel</Button>
 			</div>
 		</form>
 	{/if}
@@ -65,33 +62,33 @@
 		<EmptyState title="No queues" description="Create a queue to get started." />
 	{:else}
 		<div class="console-table-shell">
-			<Table.Root>
-				<Table.Header>
-					<Table.Row class="bg-muted/30 hover:bg-muted/30 border-b border-border">
-						<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Queue Name</Table.Head>
-						<Table.Head class="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Available</Table.Head>
-						<Table.Head class="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">In-Flight</Table.Head>
-						<Table.Head class="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Actions</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
+			<table class="w-full text-sm">
+				<thead>
+					<tr class="border-b border-border">
+						<th class="table-th">Queue Name</th>
+						<th class="table-th-right w-28">Available</th>
+						<th class="table-th-right w-28">In-Flight</th>
+						<th class="table-th-right w-32">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
 					{#each data.queues as queue}
-						<Table.Row class="border-b border-border/50 last:border-0 hover:bg-muted/20">
-							<Table.Cell>
+						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
+							<td class="px-4 py-3">
 								<div class="flex items-center gap-1.5">
-									<a href="/sqs/{encodeURIComponent(queue.name)}" class="font-medium hover:text-primary transition-colors">
+									<a href="/sqs/{encodeURIComponent(queue.name)}" class="font-medium text-foreground hover:text-primary transition-colors">
 										{queue.name}
 									</a>
 									<CopyButton text={queue.url} label="URL" />
 								</div>
-							</Table.Cell>
-							<Table.Cell class="text-right font-mono text-sm tabular-nums text-muted-foreground">
+							</td>
+							<td class="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">
 								{queue.approximateNumberOfMessages ?? '—'}
-							</Table.Cell>
-							<Table.Cell class="text-right font-mono text-sm tabular-nums text-muted-foreground">
+							</td>
+							<td class="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">
 								{queue.approximateNumberOfMessagesNotVisible ?? '—'}
-							</Table.Cell>
-							<Table.Cell class="text-right">
+							</td>
+							<td class="px-4 py-3 text-right">
 								<div class="flex items-center justify-end gap-1">
 									<Button variant="ghost" size="sm" class="h-7 px-2 text-xs" href="/sqs/{encodeURIComponent(queue.name)}">
 										Open
@@ -105,11 +102,11 @@
 										Delete
 									</Button>
 								</div>
-							</Table.Cell>
-						</Table.Row>
+							</td>
+						</tr>
 					{/each}
-				</Table.Body>
-			</Table.Root>
+				</tbody>
+			</table>
 		</div>
 	{/if}
 </div>

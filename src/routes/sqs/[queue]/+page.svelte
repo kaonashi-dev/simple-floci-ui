@@ -4,7 +4,6 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
 	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Table from '$lib/components/ui/table';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import JsonViewer from '$lib/components/JsonViewer.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
@@ -26,15 +25,16 @@
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-6 animate-fade-in-up">
+	<!-- Header -->
 	<div>
-		<nav class="mb-2 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-			<a href="/sqs" class="rounded-md px-1.5 py-1 transition-colors hover:bg-muted hover:text-foreground">SQS</a>
+		<nav class="mb-1.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+			<a href="/sqs" class="rounded px-1.5 py-1 transition-colors hover:bg-muted hover:text-foreground">SQS</a>
 			<svg class="h-3 w-3 text-border" fill="none" viewBox="0 0 6 10" stroke="currentColor" stroke-width="1.5">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M1 1l4 4-4 4"/>
 			</svg>
 			<span class="truncate font-medium text-foreground">{data.name}</span>
 		</nav>
-		<h1 class="truncate text-2xl font-semibold tracking-tight sm:text-3xl">{data.name}</h1>
+		<h1 class="truncate page-title">{data.name}</h1>
 	</div>
 
 	{#if data.error}
@@ -46,7 +46,7 @@
 	{/if}
 
 	{#if form?.success}
-		<div class="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/8 px-4 py-2.5 text-sm text-emerald-600 shadow-[var(--shadow-sm)] dark:text-emerald-400">
+		<div class="flex items-center gap-2 rounded border border-emerald-500/20 bg-emerald-500/8 px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-400">
 			<svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
 			</svg>
@@ -55,14 +55,15 @@
 	{/if}
 
 	{#if data.url}
-		<div class="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-[var(--shadow-sm)]">
+		<div class="flex items-center gap-2 rounded border border-border bg-muted/30 px-3 py-2">
 			<code class="flex-1 truncate font-mono text-xs text-muted-foreground">{data.url}</code>
 			<CopyButton text={data.url} />
 		</div>
 	{/if}
 
+	<!-- Send message + Attributes -->
 	<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-		<div class="console-panel space-y-3 p-4 sm:p-5">
+		<div class="console-panel space-y-3 p-4">
 			<h2 class="text-sm font-semibold">Send Message</h2>
 			<form method="POST" action="?/sendMessage" use:enhance class="space-y-2.5">
 				<div class="space-y-1.5">
@@ -79,9 +80,9 @@
 			</form>
 		</div>
 
-		<div class="console-panel space-y-3 p-4 sm:p-5">
+		<div class="console-panel space-y-3 p-4">
 			<h2 class="text-sm font-semibold">Attributes</h2>
-			<dl class="space-y-2">
+			<dl class="space-y-1.5">
 				{#each attrKeys.slice(0, 8) as [k, v]}
 					<div class="flex items-baseline justify-between gap-2">
 						<dt class="shrink-0 text-xs text-muted-foreground">
@@ -98,7 +99,7 @@
 
 	<!-- Messages -->
 	<div class="space-y-3">
-		<div class="console-action-row">
+		<div class="page-header">
 			<div>
 				<h2 class="text-sm font-semibold">Messages</h2>
 				<p class="mt-0.5 text-xs text-muted-foreground/60">
@@ -117,7 +118,7 @@
 
 		{#if messages.length === 0}
 			<p class="console-surface px-4 py-8 text-center text-sm text-muted-foreground">
-				No messages yet — click Receive to poll the queue.
+				No messages — click Receive to poll the queue.
 			</p>
 		{:else}
 			<div class="space-y-2">
@@ -175,7 +176,7 @@
 	<div class="rounded border border-destructive/20 bg-destructive/5 p-4">
 		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 			<div>
-				<p class="text-sm font-medium text-foreground">Purge Queue</p>
+				<p class="text-sm font-medium">Purge Queue</p>
 				<p class="mt-0.5 text-xs text-muted-foreground">Permanently removes all messages. Cannot be undone.</p>
 			</div>
 			<Button
