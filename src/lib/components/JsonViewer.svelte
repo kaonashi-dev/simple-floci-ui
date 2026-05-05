@@ -3,4 +3,4 @@
 	const formatted = $derived(JSON.stringify(value, null, 2));
 </script>
 
-<pre class="max-h-96 overflow-auto rounded border border-border bg-muted/30 p-4 font-mono text-xs leading-relaxed text-foreground/80 scrollbar-thin">{formatted}</pre>
+<pre class="max-h-96 overflow-auto rounded-xl border border-border/80 bg-slate-950 p-4 font-mono text-xs leading-relaxed text-slate-100 shadow-inner scrollbar-thin">{formatted}</pre>

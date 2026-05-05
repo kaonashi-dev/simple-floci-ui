@@ -15,11 +15,12 @@
 	let confirmDeleteName: string | null = $state(null);
 </script>
 
-<div class="max-w-3xl space-y-5 animate-fade-in-up">
-	<div class="flex items-center justify-between">
+<div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
+	<div class="console-action-row">
 		<div>
-			<h1 class="text-xl font-semibold tracking-tight">S3 Buckets</h1>
-			<p class="mt-0.5 text-sm text-muted-foreground">
+			<p class="console-subtle-label">Object storage</p>
+			<h1 class="console-heading mt-2">S3 Buckets</h1>
+			<p class="mt-1 text-sm text-muted-foreground">
 				{data.buckets.length} bucket{data.buckets.length !== 1 ? 's' : ''}
 			</p>
 		</div>
@@ -44,23 +45,25 @@
 			method="POST"
 			action="?/createBucket"
 			use:enhance={() => () => { showCreate = false; }}
-			class="flex items-end gap-2 rounded border border-border bg-card p-4"
+			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
 		>
 			<div class="flex-1 space-y-1.5">
 				<Label for="bucket-name">Bucket name</Label>
 				<Input id="bucket-name" name="name" placeholder="my-bucket" required />
 			</div>
-			<Button type="submit" size="sm">Create</Button>
-			<Button type="button" variant="ghost" size="sm" onclick={() => (showCreate = false)}>
-				Cancel
-			</Button>
+			<div class="flex gap-2">
+				<Button type="submit" size="sm">Create</Button>
+				<Button type="button" variant="ghost" size="sm" onclick={() => (showCreate = false)}>
+					Cancel
+				</Button>
+			</div>
 		</form>
 	{/if}
 
 	{#if data.buckets.length === 0 && !data.error}
 		<EmptyState title="No buckets" description="Create a bucket to get started." />
 	{:else}
-		<div class="rounded border border-border overflow-hidden">
+		<div class="console-table-shell">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row class="bg-muted/30 hover:bg-muted/30 border-b border-border">

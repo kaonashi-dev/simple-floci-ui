@@ -24,19 +24,18 @@
 	}
 </script>
 
-<div class="max-w-3xl space-y-6 animate-fade-in-up">
-	<!-- Breadcrumb + title -->
+<div class="mx-auto w-full max-w-6xl space-y-6 animate-fade-in-up">
 	<div>
-		<nav class="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-			<a href="/kms" class="transition-colors hover:text-foreground">KMS</a>
+		<nav class="mb-2 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+			<a href="/kms" class="rounded-md px-1.5 py-1 transition-colors hover:bg-muted hover:text-foreground">KMS</a>
 			<svg class="h-3 w-3 text-border" fill="none" viewBox="0 0 6 10" stroke="currentColor" stroke-width="1.5">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M1 1l4 4-4 4" />
 			</svg>
-			<code class="font-medium text-foreground">{data.keyId}</code>
+			<code class="truncate font-medium text-foreground">{data.keyId}</code>
 		</nav>
 
-		<div class="flex items-center gap-3">
-			<h1 class="font-mono text-lg font-semibold tracking-tight">{data.keyId}</h1>
+		<div class="flex flex-wrap items-center gap-3">
+			<h1 class="truncate font-mono text-xl font-semibold tracking-tight sm:text-2xl">{data.keyId}</h1>
 			{#if data.key}
 				<span class={cn('rounded border px-2 py-0.5 font-mono text-xs', stateColor(data.key.keyState))}>
 					{data.key.keyState}
@@ -45,8 +44,8 @@
 		</div>
 
 		{#if data.key?.keyArn}
-			<div class="mt-2 flex items-center gap-1.5">
-				<code class="font-mono text-xs text-muted-foreground">{data.key.keyArn}</code>
+			<div class="mt-2 flex max-w-full items-center gap-1.5">
+				<code class="truncate font-mono text-xs text-muted-foreground">{data.key.keyArn}</code>
 				<CopyButton text={data.key.keyArn} />
 			</div>
 		{/if}
@@ -62,7 +61,7 @@
 
 	{#if data.key}
 		<!-- Metadata grid -->
-		<div class="grid grid-cols-2 gap-3">
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
 			{#each [
 				{ label: 'Key Usage', value: data.key.keyUsage?.replace(/_/g, ' ') ?? '—' },
 				{ label: 'Key Spec', value: data.key.keySpec ?? '—' },
@@ -71,7 +70,7 @@
 				{ label: 'Created', value: formatDate(data.key.creationDate) },
 				{ label: 'Deletion Date', value: data.key.deletionDate ? formatDate(data.key.deletionDate) : '—' }
 			] as item}
-				<div class="rounded border border-border bg-card p-3">
+				<div class="console-surface p-3">
 					<p class="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">{item.label}</p>
 					<p class="mt-1 font-mono text-sm text-foreground">{item.value}</p>
 				</div>
@@ -79,7 +78,7 @@
 		</div>
 
 		{#if data.key.description}
-			<div class="rounded border border-border bg-card p-3">
+			<div class="console-surface p-3">
 				<p class="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">Description</p>
 				<p class="mt-1 text-sm text-foreground">{data.key.description}</p>
 			</div>
@@ -89,7 +88,7 @@
 
 		<!-- Aliases -->
 		<div class="space-y-3">
-			<div class="flex items-center justify-between">
+			<div class="console-action-row">
 				<h2 class="text-sm font-semibold">Aliases</h2>
 				<Button size="sm" variant="outline" onclick={() => (showAddAlias = !showAddAlias)}>
 					Add Alias
@@ -101,7 +100,7 @@
 					method="POST"
 					action="?/createAlias"
 					use:enhance={() => () => { showAddAlias = false; }}
-					class="flex items-end gap-2 rounded border border-border bg-card p-4"
+					class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
 				>
 					<div class="flex-1 space-y-1.5">
 						<Label for="alias-name" class="text-xs">Alias name <span class="text-muted-foreground">(without "alias/" prefix)</span></Label>
@@ -115,17 +114,17 @@
 			{#if data.aliases.length === 0}
 				<p class="text-sm text-muted-foreground">No aliases — key referenced by ID only.</p>
 			{:else}
-				<div class="overflow-hidden rounded border border-border">
+				<div class="console-table-shell">
 					{#each data.aliases as alias, i}
 						<div class={cn(
-							'flex items-center justify-between px-4 py-2.5',
+							'flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between',
 							i < data.aliases.length - 1 && 'border-b border-border/50'
 						)}>
 							<div class="flex items-center gap-2">
 								<code class="font-mono text-sm text-foreground">{alias.name}</code>
 								<CopyButton text={alias.name} />
 							</div>
-							<div class="flex items-center gap-3">
+							<div class="flex flex-wrap items-center gap-3">
 								<span class="font-mono text-xs text-muted-foreground">{formatDate(alias.lastUpdatedDate)}</span>
 								<Button
 									variant="ghost"
@@ -145,7 +144,7 @@
 		<div class="h-px bg-border"></div>
 
 		<!-- Key rotation -->
-		<div class="flex items-center justify-between rounded border border-border bg-card p-4">
+		<div class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
 			<div>
 				<p class="text-sm font-medium">Automatic Key Rotation</p>
 				<p class="mt-0.5 text-xs text-muted-foreground">
@@ -170,7 +169,7 @@
 		<div class="h-px bg-border"></div>
 
 		<!-- Enable / disable / schedule deletion -->
-		<div class="rounded border border-destructive/20 bg-destructive/5 p-4 space-y-3">
+		<div class="rounded-xl border border-destructive/20 bg-destructive/5 p-4 space-y-3 shadow-[var(--shadow-sm)]">
 			<p class="text-sm font-medium text-foreground">Danger Zone</p>
 			<div class="flex flex-wrap items-center gap-2">
 				{#if data.key.keyState === 'Enabled'}

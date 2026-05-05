@@ -25,11 +25,12 @@
 	}
 </script>
 
-<div class="max-w-5xl space-y-5 animate-fade-in-up">
-	<div class="flex items-center justify-between">
+<div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
+	<div class="console-action-row">
 		<div>
-			<h1 class="text-xl font-semibold tracking-tight">KMS Keys</h1>
-			<p class="mt-0.5 text-sm text-muted-foreground">
+			<p class="console-subtle-label">Encryption</p>
+			<h1 class="console-heading mt-2">KMS Keys</h1>
+			<p class="mt-1 text-sm text-muted-foreground">
 				{data.keys.length} key{data.keys.length !== 1 ? 's' : ''}
 			</p>
 		</div>
@@ -54,23 +55,25 @@
 			method="POST"
 			action="?/createKey"
 			use:enhance={() => () => { showCreate = false; }}
-			class="flex items-end gap-2 rounded border border-border bg-card p-4"
+			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
 		>
 			<div class="flex-1 space-y-1.5">
 				<Label for="key-desc">Description (optional)</Label>
 				<Input id="key-desc" name="description" placeholder="My encryption key" />
 			</div>
-			<Button type="submit" size="sm">Create</Button>
-			<Button type="button" variant="ghost" size="sm" onclick={() => (showCreate = false)}>
-				Cancel
-			</Button>
+			<div class="flex gap-2">
+				<Button type="submit" size="sm">Create</Button>
+				<Button type="button" variant="ghost" size="sm" onclick={() => (showCreate = false)}>
+					Cancel
+				</Button>
+			</div>
 		</form>
 	{/if}
 
 	{#if data.keys.length === 0 && !data.error}
 		<EmptyState title="No keys" description="Create a symmetric key to get started." />
 	{:else}
-		<div class="overflow-hidden rounded border border-border">
+		<div class="console-table-shell">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row class="border-b border-border bg-muted/30 hover:bg-muted/30">

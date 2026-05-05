@@ -36,18 +36,17 @@
 	}
 </script>
 
-<div class="max-w-5xl space-y-5 animate-fade-in-up">
-	<!-- Breadcrumb + title -->
+<div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
 	<div>
-		<nav class="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-			<a href="/cognito" class="transition-colors hover:text-foreground">Cognito</a>
+		<nav class="mb-2 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+			<a href="/cognito" class="rounded-md px-1.5 py-1 transition-colors hover:bg-muted hover:text-foreground">Cognito</a>
 			<svg class="h-3 w-3 text-border" fill="none" viewBox="0 0 6 10" stroke="currentColor" stroke-width="1.5">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M1 1l4 4-4 4" />
 			</svg>
-			<span class="font-medium text-foreground">{data.pool?.name ?? data.poolId}</span>
+			<span class="truncate font-medium text-foreground">{data.pool?.name ?? data.poolId}</span>
 		</nav>
-		<div class="flex items-center gap-3">
-			<h1 class="text-xl font-semibold tracking-tight">{data.pool?.name ?? data.poolId}</h1>
+		<div class="flex flex-wrap items-center gap-3">
+			<h1 class="truncate text-2xl font-semibold tracking-tight sm:text-3xl">{data.pool?.name ?? data.poolId}</h1>
 			{#if data.pool}
 				<Badge variant="outline" class="font-mono text-xs text-muted-foreground">
 					{data.pool.estimatedNumberOfUsers ?? 0} users
@@ -55,8 +54,8 @@
 			{/if}
 		</div>
 		{#if data.pool}
-			<div class="mt-2 flex items-center gap-1.5">
-				<code class="font-mono text-xs text-muted-foreground">{data.pool.id}</code>
+			<div class="mt-2 flex max-w-full items-center gap-1.5">
+				<code class="truncate font-mono text-xs text-muted-foreground">{data.pool.id}</code>
 				<CopyButton text={data.pool.id} />
 			</div>
 		{/if}
@@ -71,7 +70,7 @@
 	{/if}
 
 	{#if form?.success}
-		<div class="flex items-center gap-2 rounded border border-emerald-500/20 bg-emerald-500/8 px-4 py-2.5 text-sm text-emerald-400">
+		<div class="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/8 px-4 py-2.5 text-sm text-emerald-600 shadow-[var(--shadow-sm)] dark:text-emerald-400">
 			<svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
 			</svg>
@@ -81,13 +80,13 @@
 
 	<!-- Pool meta info -->
 	{#if data.pool}
-		<div class="grid grid-cols-3 gap-3">
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
 			{#each [
 				{ label: 'Created', value: formatDate(data.pool.creationDate) },
 				{ label: 'Last Modified', value: formatDate(data.pool.lastModifiedDate) },
 				{ label: 'Auto-verified', value: data.pool.autoVerifiedAttributes?.join(', ') || '—' }
 			] as item}
-				<div class="rounded border border-border bg-card p-3">
+				<div class="console-surface p-3">
 					<p class="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">{item.label}</p>
 					<p class="mt-1 text-sm text-foreground">{item.value}</p>
 				</div>
@@ -96,7 +95,7 @@
 	{/if}
 
 	<!-- Tabs -->
-	<div class="flex items-center gap-0 border-b border-border">
+	<div class="flex overflow-x-auto border-b border-border">
 		{#each [{ id: 'users', label: 'Users', count: data.users.length }, { id: 'groups', label: 'Groups', count: data.groups.length }] as tab}
 			<button
 				type="button"
@@ -122,7 +121,7 @@
 	<!-- Users tab -->
 	{#if activeTab === 'users'}
 		<div class="space-y-3">
-			<div class="flex items-center justify-between">
+			<div class="console-action-row">
 				<p class="text-sm text-muted-foreground">{data.users.length} user{data.users.length !== 1 ? 's' : ''}</p>
 				<Button size="sm" onclick={() => (showCreateUser = !showCreateUser)}>
 					<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -137,7 +136,7 @@
 					method="POST"
 					action="?/createUser"
 					use:enhance={() => async ({ update }) => { showCreateUser = false; await update(); }}
-					class="grid grid-cols-3 items-end gap-2 rounded border border-border bg-card p-4"
+					class="console-panel grid grid-cols-1 items-end gap-3 p-4 md:grid-cols-3"
 				>
 					<div class="space-y-1.5">
 						<Label for="username" class="text-xs">Username</Label>
@@ -151,7 +150,7 @@
 						<Label for="tempPassword" class="text-xs">Temp Password</Label>
 						<Input id="tempPassword" name="tempPassword" type="password" placeholder="Temp@1234" required class="h-8 text-sm" />
 					</div>
-					<div class="col-span-3 flex justify-end gap-2">
+					<div class="flex justify-end gap-2 md:col-span-3">
 						<Button type="button" variant="ghost" size="sm" onclick={() => (showCreateUser = false)}>Cancel</Button>
 						<Button type="submit" size="sm">Create User</Button>
 					</div>
@@ -161,7 +160,7 @@
 			{#if data.users.length === 0}
 				<EmptyState title="No users" description="Add a user to this pool." />
 			{:else}
-				<div class="overflow-hidden rounded border border-border">
+				<div class="console-table-shell">
 					<Table.Root>
 						<Table.Header>
 							<Table.Row class="border-b border-border bg-muted/30 hover:bg-muted/30">
@@ -257,7 +256,7 @@
 	<!-- Groups tab -->
 	{#if activeTab === 'groups'}
 		<div class="space-y-3">
-			<div class="flex items-center justify-between">
+			<div class="console-action-row">
 				<p class="text-sm text-muted-foreground">{data.groups.length} group{data.groups.length !== 1 ? 's' : ''}</p>
 				<Button size="sm" onclick={() => (showCreateGroup = !showCreateGroup)}>
 					<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -272,7 +271,7 @@
 					method="POST"
 					action="?/createGroup"
 					use:enhance={() => async ({ update }) => { showCreateGroup = false; await update(); }}
-					class="grid grid-cols-2 items-end gap-2 rounded border border-border bg-card p-4"
+					class="console-panel grid grid-cols-1 items-end gap-3 p-4 md:grid-cols-2"
 				>
 					<div class="space-y-1.5">
 						<Label for="group-name" class="text-xs">Group name</Label>
@@ -282,7 +281,7 @@
 						<Label for="group-desc" class="text-xs">Description (optional)</Label>
 						<Input id="group-desc" name="description" placeholder="Administrator group" class="h-8 text-sm" />
 					</div>
-					<div class="col-span-2 flex justify-end gap-2">
+					<div class="flex justify-end gap-2 md:col-span-2">
 						<Button type="button" variant="ghost" size="sm" onclick={() => (showCreateGroup = false)}>Cancel</Button>
 						<Button type="submit" size="sm">Create Group</Button>
 					</div>
@@ -292,7 +291,7 @@
 			{#if data.groups.length === 0}
 				<EmptyState title="No groups" description="Add a group to organize pool users." />
 			{:else}
-				<div class="overflow-hidden rounded border border-border">
+				<div class="console-table-shell">
 					<Table.Root>
 						<Table.Header>
 							<Table.Row class="border-b border-border bg-muted/30 hover:bg-muted/30">

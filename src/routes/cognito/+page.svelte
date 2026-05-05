@@ -16,15 +16,16 @@
 	let confirmDelete: { id: string; name: string } | null = $state(null);
 </script>
 
-<div class="max-w-4xl space-y-5 animate-fade-in-up">
-	<div class="flex items-center justify-between">
+<div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
+	<div class="console-action-row">
 		<div>
-			<h1 class="text-xl font-semibold tracking-tight">Cognito User Pools</h1>
-			<p class="mt-0.5 text-sm text-muted-foreground">
+			<p class="console-subtle-label">Identity</p>
+			<h1 class="console-heading mt-2">Cognito User Pools</h1>
+			<p class="mt-1 text-sm text-muted-foreground">
 				{data.pools.length} pool{data.pools.length !== 1 ? 's' : ''}
 			</p>
-			<div class="mt-1.5 flex items-center gap-1">
-				<code class="font-mono text-xs text-muted-foreground">{data.endpoint}</code>
+			<div class="mt-2 flex max-w-full items-center gap-1">
+				<code class="truncate font-mono text-xs text-muted-foreground">{data.endpoint}</code>
 				<CopyButton text={data.endpoint} />
 			</div>
 		</div>
@@ -49,23 +50,25 @@
 			method="POST"
 			action="?/createPool"
 			use:enhance={() => () => { showCreate = false; }}
-			class="flex items-end gap-2 rounded border border-border bg-card p-4"
+			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
 		>
 			<div class="flex-1 space-y-1.5">
 				<Label for="pool-name">Pool name</Label>
 				<Input id="pool-name" name="name" placeholder="my-user-pool" required />
 			</div>
-			<Button type="submit" size="sm">Create</Button>
-			<Button type="button" variant="ghost" size="sm" onclick={() => (showCreate = false)}>
-				Cancel
-			</Button>
+			<div class="flex gap-2">
+				<Button type="submit" size="sm">Create</Button>
+				<Button type="button" variant="ghost" size="sm" onclick={() => (showCreate = false)}>
+					Cancel
+				</Button>
+			</div>
 		</form>
 	{/if}
 
 	{#if data.pools.length === 0 && !data.error}
 		<EmptyState title="No user pools" description="Create a user pool to get started." />
 	{:else}
-		<div class="overflow-hidden rounded border border-border">
+		<div class="console-table-shell">
 			<Table.Root>
 				<Table.Header>
 					<Table.Row class="border-b border-border bg-muted/30 hover:bg-muted/30">
