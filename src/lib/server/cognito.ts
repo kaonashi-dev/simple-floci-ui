@@ -10,6 +10,8 @@ import {
 	AdminEnableUserCommand,
 	AdminDisableUserCommand,
 	AdminResetUserPasswordCommand,
+	AdminSetUserPasswordCommand,
+	AdminUpdateUserAttributesCommand,
 	ListGroupsCommand,
 	CreateGroupCommand,
 	DeleteGroupCommand,
@@ -133,6 +135,21 @@ export async function createUser(
 	);
 }
 
+export async function updateUserAttributes(
+	poolId: string,
+	username: string,
+	attributes: Record<string, string>
+): Promise<void> {
+	const cognito = client();
+	await cognito.send(
+		new AdminUpdateUserAttributesCommand({
+			UserPoolId: poolId,
+			Username: username,
+			UserAttributes: Object.entries(attributes).map(([Name, Value]) => ({ Name, Value }))
+		})
+	);
+}
+
 export async function deleteUser(poolId: string, username: string): Promise<void> {
 	const cognito = client();
 	await cognito.send(new AdminDeleteUserCommand({ UserPoolId: poolId, Username: username }));
@@ -152,6 +169,23 @@ export async function resetUserPassword(poolId: string, username: string): Promi
 	const cognito = client();
 	await cognito.send(
 		new AdminResetUserPasswordCommand({ UserPoolId: poolId, Username: username })
+	);
+}
+
+export async function setUserPassword(
+	poolId: string,
+	username: string,
+	password: string,
+	permanent: boolean = true
+): Promise<void> {
+	const cognito = client();
+	await cognito.send(
+		new AdminSetUserPasswordCommand({
+			UserPoolId: poolId,
+			Username: username,
+			Password: password,
+			Permanent: permanent
+		})
 	);
 }
 

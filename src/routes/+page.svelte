@@ -1,138 +1,176 @@
 <script lang="ts">
+	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
+	import DatabaseIcon from '@lucide/svelte/icons/database';
+	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
+	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
+	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
+	import RadioTowerIcon from '@lucide/svelte/icons/radio-tower';
+	import SigmaIcon from '@lucide/svelte/icons/sigma';
+	import ShieldAlertIcon from '@lucide/svelte/icons/shield-alert';
+	import UsersRoundIcon from '@lucide/svelte/icons/users-round';
+	import ZapIcon from '@lucide/svelte/icons/zap';
+
 	let { data } = $props();
+
+	const services = $derived([
+		{
+			href: '/sqs',
+			label: 'SQS',
+			subtitle: 'Simple Queue Service',
+			description: 'Inspect message flow and queue depth.',
+			count: data.sqsCount,
+			error: data.sqsError,
+			unit: 'queue',
+			icon: MessageSquareIcon
+		},
+		{
+			href: '/s3',
+			label: 'S3',
+			subtitle: 'Simple Storage Service',
+			description: 'Browse objects, prefixes, and uploads.',
+			count: data.s3Count,
+			error: data.s3Error,
+			unit: 'bucket',
+			icon: HardDriveIcon
+		},
+		{
+			href: '/cognito',
+			label: 'Cognito',
+			subtitle: 'Identity Provider',
+			description: 'Manage local users, groups, and identities.',
+			count: data.cognitoCount,
+			error: data.cognitoError,
+			unit: 'pool',
+			icon: UsersRoundIcon
+		},
+		{
+			href: '/kms',
+			label: 'KMS',
+			subtitle: 'Key Management Service',
+			description: 'Review keys, aliases, and rotation settings.',
+			count: data.kmsCount,
+			error: data.kmsError,
+			unit: 'key',
+			icon: KeyRoundIcon
+		}
+	]);
+
+	const upcoming = [
+		{ label: 'DynamoDB', icon: DatabaseIcon },
+		{ label: 'Lambda', icon: SigmaIcon },
+		{ label: 'SNS', icon: RadioTowerIcon }
+	];
 </script>
 
-<div class="max-w-2xl space-y-8 animate-fade-in-up">
+<div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
 	<!-- Page header -->
-	<div>
-		<h1 class="text-xl font-semibold tracking-tight">Dashboard</h1>
-		<p class="mt-1 text-sm text-muted-foreground">Local AWS services for Floci.</p>
+	<div class="page-header">
+		<div>
+			<p class="console-subtle-label">Overview</p>
+			<h1 class="mt-1.5 page-title">Local AWS Console</h1>
+			<p class="mt-1 page-subtitle">Operational view for Floci local cloud resources.</p>
+		</div>
+
+		<!-- Connection status card -->
+		<div class="console-panel flex min-w-64 items-center gap-3 p-3">
+			<span class="flex size-8 shrink-0 items-center justify-center rounded border border-border bg-muted/50">
+				<ZapIcon class="size-4 {data.connection.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}" />
+			</span>
+			<div class="min-w-0">
+				<p class="text-sm font-medium leading-none">{data.connection.ok ? 'Connected' : 'Disconnected'}</p>
+				<code class="mt-1 block truncate font-mono text-[11px] text-muted-foreground">{data.connection.endpoint}</code>
+			</div>
+		</div>
 	</div>
 
-	<!-- Connection error -->
 	{#if !data.connection.ok}
-		<div class="flex items-start gap-3 rounded border border-destructive/25 bg-destructive/8 px-4 py-3">
-			<svg class="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-			</svg>
-			<div>
+		<div class="flex items-start gap-3 rounded border border-destructive/30 bg-destructive/8 px-4 py-3">
+			<ShieldAlertIcon class="mt-0.5 size-4 shrink-0 text-destructive" />
+			<div class="min-w-0">
 				<p class="text-sm font-medium text-destructive">Floci is not reachable</p>
-				<p class="mt-0.5 font-mono text-xs text-destructive/60">
-					Check that the Floci container is running at {data.connection.endpoint}
-				</p>
+				<p class="mt-0.5 break-words font-mono text-xs text-destructive/65">Check that the Floci container is running at {data.connection.endpoint}</p>
 			</div>
 		</div>
 	{/if}
 
-	<!-- Service cards -->
-	<div class="grid grid-cols-2 gap-4">
-		<!-- SQS -->
-		<a href="/sqs" class="group block rounded border border-border bg-card p-5 transition-all hover:border-primary/40 hover:shadow-md">
-			<div class="mb-4 flex items-start justify-between">
-				<div class="flex h-9 w-9 items-center justify-center rounded bg-muted/60">
-					<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="h-4 w-4 text-primary">
-						<line x1="2" y1="4" x2="14" y2="4" />
-						<line x1="2" y1="8" x2="10" y2="8" />
-						<line x1="2" y1="12" x2="12" y2="12" />
-					</svg>
-				</div>
-				{#if data.sqsError}
-					<span class="rounded bg-destructive/10 px-1.5 py-0.5 font-mono text-[10px] text-destructive">error</span>
-				{:else}
-					<svg class="h-3.5 w-3.5 translate-x-0 translate-y-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M7 7h10v10" />
-					</svg>
-				{/if}
-			</div>
-			<p class="font-mono text-3xl font-semibold tabular-nums text-foreground">
-				{data.sqsCount ?? '—'}
-			</p>
-			<p class="mt-1 text-sm font-medium text-foreground">SQS Queues</p>
-			<p class="mt-0.5 text-xs text-muted-foreground">Simple Queue Service</p>
-		</a>
-
-		<!-- S3 -->
-		<a href="/s3" class="group block rounded border border-border bg-card p-5 transition-all hover:border-primary/40 hover:shadow-md">
-			<div class="mb-4 flex items-start justify-between">
-				<div class="flex h-9 w-9 items-center justify-center rounded bg-muted/60">
-					<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 text-primary">
-						<ellipse cx="8" cy="4.5" rx="5" ry="2" />
-						<path d="M3 4.5v7C3 12.88 5.24 14 8 14s5-1.12 5-2.5v-7" />
-					</svg>
-				</div>
-				{#if data.s3Error}
-					<span class="rounded bg-destructive/10 px-1.5 py-0.5 font-mono text-[10px] text-destructive">error</span>
-				{:else}
-					<svg class="h-3.5 w-3.5 translate-x-0 translate-y-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M7 7h10v10" />
-					</svg>
-				{/if}
-			</div>
-			<p class="font-mono text-3xl font-semibold tabular-nums text-foreground">
-				{data.s3Count ?? '—'}
-			</p>
-			<p class="mt-1 text-sm font-medium text-foreground">S3 Buckets</p>
-			<p class="mt-0.5 text-xs text-muted-foreground">Simple Storage Service</p>
-		</a>
-
-		<!-- Cognito -->
-		<a href="/cognito" class="group block rounded border border-border bg-card p-5 transition-all hover:border-primary/40 hover:shadow-md">
-			<div class="mb-4 flex items-start justify-between">
-				<div class="flex h-9 w-9 items-center justify-center rounded bg-muted/60">
-					<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 text-primary">
-						<circle cx="8" cy="5.5" r="2.5" />
-						<path d="M2.5 14c0-3.04 2.46-5.5 5.5-5.5s5.5 2.46 5.5 5.5" />
-					</svg>
-				</div>
-				{#if data.cognitoError}
-					<span class="rounded bg-destructive/10 px-1.5 py-0.5 font-mono text-[10px] text-destructive">error</span>
-				{:else}
-					<svg class="h-3.5 w-3.5 translate-x-0 translate-y-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M7 7h10v10" />
-					</svg>
-				{/if}
-			</div>
-			<p class="font-mono text-3xl font-semibold tabular-nums text-foreground">
-				{data.cognitoCount ?? '—'}
-			</p>
-			<p class="mt-1 text-sm font-medium text-foreground">Cognito Pools</p>
-			<p class="mt-0.5 text-xs text-muted-foreground">User Pool Identity</p>
-		</a>
-
-		<!-- KMS -->
-		<a href="/kms" class="group block rounded border border-border bg-card p-5 transition-all hover:border-primary/40 hover:shadow-md">
-			<div class="mb-4 flex items-start justify-between">
-				<div class="flex h-9 w-9 items-center justify-center rounded bg-muted/60">
-					<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 text-primary">
-						<circle cx="6" cy="8" r="3" />
-						<path d="M9 8h5M12 6.5V8M14 6.5V8" />
-					</svg>
-				</div>
-				{#if data.kmsError}
-					<span class="rounded bg-destructive/10 px-1.5 py-0.5 font-mono text-[10px] text-destructive">error</span>
-				{:else}
-					<svg class="h-3.5 w-3.5 translate-x-0 translate-y-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M7 7h10v10" />
-					</svg>
-				{/if}
-			</div>
-			<p class="font-mono text-3xl font-semibold tabular-nums text-foreground">
-				{data.kmsCount ?? '—'}
-			</p>
-			<p class="mt-1 text-sm font-medium text-foreground">KMS Keys</p>
-			<p class="mt-0.5 text-xs text-muted-foreground">Key Management Service</p>
-		</a>
+	<!-- Services grid -->
+	<div>
+		<h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">Available Services</h2>
+		<div class="console-table-shell">
+			<table class="w-full text-sm">
+				<thead>
+					<tr class="border-b border-border">
+						<th class="table-th">Service</th>
+						<th class="table-th">Description</th>
+						<th class="table-th-right">Resources</th>
+						<th class="table-th-right w-24">Status</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each services as service}
+						{@const Icon = service.icon}
+						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
+							<td class="px-4 py-3">
+								<div class="flex items-center gap-2.5">
+									<span class="flex size-7 shrink-0 items-center justify-center rounded border border-border bg-muted/50">
+										<Icon class="size-3.5 text-primary" />
+									</span>
+									<div>
+										<a href={service.href} class="font-medium text-foreground transition-colors hover:text-primary leading-none">
+											{service.label}
+										</a>
+										<p class="mt-0.5 text-xs text-muted-foreground leading-none">{service.subtitle}</p>
+									</div>
+								</div>
+							</td>
+							<td class="px-4 py-3 text-sm text-muted-foreground">{service.description}</td>
+							<td class="px-4 py-3 text-right font-mono tabular-nums">
+								{#if service.error}
+									<span class="console-tag border-destructive/30 text-destructive bg-destructive/8">error</span>
+								{:else if service.count != null}
+									<span class="font-semibold text-foreground">{service.count}</span>
+									<span class="ml-1 text-xs text-muted-foreground">{service.count === 1 ? service.unit : service.unit + 's'}</span>
+								{:else}
+									<span class="text-muted-foreground/50">—</span>
+								{/if}
+							</td>
+							<td class="px-4 py-3 text-right">
+								<a href={service.href} class="inline-flex items-center gap-1 text-xs text-primary hover:underline font-medium">
+									Open
+									<ArrowRightIcon class="size-3" />
+								</a>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
 	</div>
 
-	<!-- Coming soon -->
+	<!-- Upcoming services -->
 	<div>
-		<p class="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground/50">Coming Soon</p>
-		<div class="grid grid-cols-3 gap-2">
-			{#each ['DynamoDB', 'Lambda', 'SNS'] as service}
-				<div class="rounded border border-border/50 bg-card/50 p-3">
-					<p class="text-sm text-muted-foreground/40">{service}</p>
-				</div>
-			{/each}
+		<h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">Upcoming Services</h2>
+		<div class="console-table-shell">
+			<table class="w-full text-sm">
+				<tbody>
+					{#each upcoming as service}
+						{@const Icon = service.icon}
+						<tr class="border-b border-border/40 last:border-0">
+							<td class="px-4 py-2.5">
+								<div class="flex items-center gap-2.5 text-muted-foreground/50">
+									<span class="flex size-7 shrink-0 items-center justify-center rounded border border-border/50 bg-muted/25">
+										<Icon class="size-3.5" />
+									</span>
+									<span>{service.label}</span>
+								</div>
+							</td>
+							<td class="px-4 py-2.5 text-right">
+								<span class="console-tag border-border/50 bg-muted/30 text-muted-foreground/50">soon</span>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
 		</div>
 	</div>
 </div>

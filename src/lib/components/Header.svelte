@@ -1,58 +1,45 @@
 <script lang="ts">
+	import MenuIcon from '@lucide/svelte/icons/menu';
+	import ServerCogIcon from '@lucide/svelte/icons/server-cog';
 	import type { ConnectionStatus } from '$lib/types/common';
 
 	let { connection, onMenuToggle }: { connection: ConnectionStatus; onMenuToggle?: () => void } = $props();
 </script>
 
-<header class="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-sidebar px-4">
-	<!-- Mobile hamburger -->
+<header class="flex h-11 shrink-0 items-center gap-3 border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground sm:px-4">
 	{#if onMenuToggle}
 		<button
-			class="flex h-7 w-7 items-center justify-center rounded hover:bg-accent lg:hidden"
+			class="flex size-8 items-center justify-center rounded text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground lg:hidden"
 			onclick={onMenuToggle}
 			aria-label="Toggle sidebar"
 		>
-			<svg class="h-4 w-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-			</svg>
+			<MenuIcon class="size-4" />
 		</button>
 	{/if}
 
-	<!-- Logo -->
-	<a href="/" class="flex items-center gap-2.5">
-		<svg
-			class="h-4.5 w-4.5 shrink-0 text-primary"
-			viewBox="0 0 20 20"
-			fill="currentColor"
-			xmlns="http://www.w3.org/2000/svg"
-			aria-hidden="true"
-		>
-			<rect x="0" y="0" width="20" height="6" rx="1.5" />
-			<rect x="0" y="8" width="14" height="6" rx="1.5" opacity="0.6" />
-			<rect x="0" y="16" width="9" height="4" rx="1.5" opacity="0.32" />
-		</svg>
-		<span class="text-sm font-semibold tracking-tight text-foreground">
-			simple-floci-ui
+	<a href="/" class="flex items-center gap-2.5 shrink-0">
+		<span class="flex size-6 shrink-0 items-center justify-center rounded bg-primary text-primary-foreground">
+			<ServerCogIcon class="size-3.5" />
 		</span>
+		<span class="text-sm font-semibold tracking-tight text-sidebar-foreground leading-none">Floci Explorer</span>
 	</a>
 
-	<!-- Separator + endpoint (hidden on very small screens) -->
-	<div class="hidden h-4 w-px bg-border sm:block"></div>
-	<code class="hidden rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground sm:block">
+	<div class="hidden h-4 w-px bg-sidebar-border/60 sm:block"></div>
+
+	<code class="hidden max-w-[28vw] truncate rounded border border-sidebar-border/70 bg-sidebar-accent/35 px-2 py-0.5 font-mono text-[11px] text-sidebar-foreground/55 md:block">
 		{connection.endpoint}
 	</code>
 
-	<!-- Status -->
 	<div class="ml-auto flex items-center gap-2">
 		{#if connection.ok}
-			<div class="flex items-center gap-1.5 rounded border border-border bg-muted/40 px-2 py-1 text-xs">
+			<div class="flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[11px]">
 				<span class="pulse-dot size-1.5 rounded-full bg-emerald-500"></span>
-				<span class="hidden text-muted-foreground sm:block">Connected</span>
+				<span class="hidden text-emerald-300/80 sm:block">Connected</span>
 			</div>
 		{:else}
-			<div class="flex items-center gap-1.5 rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs">
+			<div class="flex items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/12 px-2.5 py-1 text-[11px]">
 				<span class="size-1.5 rounded-full bg-destructive"></span>
-				<span class="hidden text-destructive sm:block">Disconnected</span>
+				<span class="hidden text-destructive/80 sm:block">Disconnected</span>
 			</div>
 		{/if}
 	</div>

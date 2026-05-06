@@ -15,7 +15,7 @@
 	variant="ghost"
 	size="sm"
 	onclick={copy}
-	class="h-6 gap-1 px-1.5 text-xs text-muted-foreground transition-colors {copied ? 'text-emerald-500' : 'hover:text-foreground'}"
+	class="h-7 gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors {copied ? 'text-emerald-600 dark:text-emerald-400' : 'hover:bg-muted hover:text-foreground'}"
 >
 	{#if copied}
 		<svg class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">

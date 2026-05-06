@@ -3,7 +3,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
@@ -16,20 +15,25 @@
 	let confirmDelete: { id: string; name: string } | null = $state(null);
 </script>
 
-<div class="max-w-4xl space-y-5 animate-fade-in-up">
-	<div class="flex items-center justify-between">
+<div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
+	<div class="page-header">
 		<div>
-			<h1 class="text-xl font-semibold tracking-tight">Cognito User Pools</h1>
-			<p class="mt-0.5 text-sm text-muted-foreground">
-				{data.pools.length} pool{data.pools.length !== 1 ? 's' : ''}
-			</p>
+			<p class="console-subtle-label">Identity</p>
+			<h1 class="mt-1.5 page-title">Cognito User Pools</h1>
+			<p class="mt-1 page-subtitle">{data.pools.length} pool{data.pools.length !== 1 ? 's' : ''}</p>
+			<div class="mt-1.5 flex items-center gap-1">
+				<code class="truncate font-mono text-xs text-muted-foreground">{data.endpoint}</code>
+				<CopyButton text={data.endpoint} />
+			</div>
 		</div>
-		<Button size="sm" onclick={() => (showCreate = !showCreate)}>
-			<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-			</svg>
-			Create Pool
-		</Button>
+		<div class="flex items-center gap-2">
+			<Button size="sm" onclick={() => (showCreate = !showCreate)}>
+				<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+				</svg>
+				Create Pool
+			</Button>
+		</div>
 	</div>
 
 	{#if data.error}
@@ -45,48 +49,48 @@
 			method="POST"
 			action="?/createPool"
 			use:enhance={() => () => { showCreate = false; }}
-			class="flex items-end gap-2 rounded border border-border bg-card p-4"
+			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
 		>
 			<div class="flex-1 space-y-1.5">
-				<Label for="pool-name">Pool name</Label>
-				<Input id="pool-name" name="name" placeholder="my-user-pool" required />
+				<Label for="pool-name" class="text-xs">Pool name</Label>
+				<Input id="pool-name" name="name" placeholder="my-user-pool" required class="h-8 text-sm" />
 			</div>
-			<Button type="submit" size="sm">Create</Button>
-			<Button type="button" variant="ghost" size="sm" onclick={() => (showCreate = false)}>
-				Cancel
-			</Button>
+			<div class="flex gap-2">
+				<Button type="submit" size="sm">Create</Button>
+				<Button type="button" variant="ghost" size="sm" onclick={() => (showCreate = false)}>Cancel</Button>
+			</div>
 		</form>
 	{/if}
 
 	{#if data.pools.length === 0 && !data.error}
 		<EmptyState title="No user pools" description="Create a user pool to get started." />
 	{:else}
-		<div class="overflow-hidden rounded border border-border">
-			<Table.Root>
-				<Table.Header>
-					<Table.Row class="border-b border-border bg-muted/30 hover:bg-muted/30">
-						<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Pool Name</Table.Head>
-						<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Pool ID</Table.Head>
-						<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Created</Table.Head>
-						<Table.Head class="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Actions</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
+		<div class="console-table-shell">
+			<table class="w-full text-sm">
+				<thead>
+					<tr class="border-b border-border">
+						<th class="table-th">Pool Name</th>
+						<th class="table-th">Pool ID</th>
+						<th class="table-th">Created</th>
+						<th class="table-th-right w-32">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
 					{#each data.pools as pool}
-						<Table.Row class="border-b border-border/50 last:border-0 hover:bg-muted/20">
-							<Table.Cell>
-								<a href="/cognito/{encodeURIComponent(pool.id)}" class="font-medium transition-colors hover:text-primary">
+						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
+							<td class="px-4 py-3">
+								<a href="/cognito/{encodeURIComponent(pool.id)}" class="font-medium text-foreground hover:text-primary transition-colors">
 									{pool.name}
 								</a>
-							</Table.Cell>
-							<Table.Cell>
+							</td>
+							<td class="px-4 py-3">
 								<div class="flex items-center gap-1.5">
 									<code class="font-mono text-xs text-muted-foreground">{pool.id}</code>
 									<CopyButton text={pool.id} />
 								</div>
-							</Table.Cell>
-							<Table.Cell class="text-sm text-muted-foreground">{formatDate(pool.creationDate)}</Table.Cell>
-							<Table.Cell class="text-right">
+							</td>
+							<td class="px-4 py-3 text-muted-foreground">{formatDate(pool.creationDate)}</td>
+							<td class="px-4 py-3 text-right">
 								<div class="flex items-center justify-end gap-1">
 									<Button variant="ghost" size="sm" class="h-7 px-2 text-xs" href="/cognito/{encodeURIComponent(pool.id)}">
 										Open
@@ -100,11 +104,11 @@
 										Delete
 									</Button>
 								</div>
-							</Table.Cell>
-						</Table.Row>
+							</td>
+						</tr>
 					{/each}
-				</Table.Body>
-			</Table.Root>
+				</tbody>
+			</table>
 		</div>
 	{/if}
 </div>

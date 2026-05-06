@@ -3,7 +3,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
@@ -15,20 +14,21 @@
 	let confirmDeleteName: string | null = $state(null);
 </script>
 
-<div class="max-w-3xl space-y-5 animate-fade-in-up">
-	<div class="flex items-center justify-between">
+<div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
+	<div class="page-header">
 		<div>
-			<h1 class="text-xl font-semibold tracking-tight">S3 Buckets</h1>
-			<p class="mt-0.5 text-sm text-muted-foreground">
-				{data.buckets.length} bucket{data.buckets.length !== 1 ? 's' : ''}
-			</p>
+			<p class="console-subtle-label">Object Storage</p>
+			<h1 class="mt-1.5 page-title">S3 Buckets</h1>
+			<p class="mt-1 page-subtitle">{data.buckets.length} bucket{data.buckets.length !== 1 ? 's' : ''}</p>
 		</div>
-		<Button size="sm" onclick={() => (showCreate = !showCreate)}>
-			<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-			</svg>
-			Create Bucket
-		</Button>
+		<div class="flex items-center gap-2">
+			<Button size="sm" onclick={() => (showCreate = !showCreate)}>
+				<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+				</svg>
+				Create Bucket
+			</Button>
+		</div>
 	</div>
 
 	{#if data.error}
@@ -44,41 +44,41 @@
 			method="POST"
 			action="?/createBucket"
 			use:enhance={() => () => { showCreate = false; }}
-			class="flex items-end gap-2 rounded border border-border bg-card p-4"
+			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
 		>
 			<div class="flex-1 space-y-1.5">
-				<Label for="bucket-name">Bucket name</Label>
-				<Input id="bucket-name" name="name" placeholder="my-bucket" required />
+				<Label for="bucket-name" class="text-xs">Bucket name</Label>
+				<Input id="bucket-name" name="name" placeholder="my-bucket" required class="h-8 text-sm" />
 			</div>
-			<Button type="submit" size="sm">Create</Button>
-			<Button type="button" variant="ghost" size="sm" onclick={() => (showCreate = false)}>
-				Cancel
-			</Button>
+			<div class="flex gap-2">
+				<Button type="submit" size="sm">Create</Button>
+				<Button type="button" variant="ghost" size="sm" onclick={() => (showCreate = false)}>Cancel</Button>
+			</div>
 		</form>
 	{/if}
 
 	{#if data.buckets.length === 0 && !data.error}
 		<EmptyState title="No buckets" description="Create a bucket to get started." />
 	{:else}
-		<div class="rounded border border-border overflow-hidden">
-			<Table.Root>
-				<Table.Header>
-					<Table.Row class="bg-muted/30 hover:bg-muted/30 border-b border-border">
-						<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Bucket Name</Table.Head>
-						<Table.Head class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Created</Table.Head>
-						<Table.Head class="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">Actions</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
+		<div class="console-table-shell">
+			<table class="w-full text-sm">
+				<thead>
+					<tr class="border-b border-border">
+						<th class="table-th">Bucket Name</th>
+						<th class="table-th">Created</th>
+						<th class="table-th-right w-32">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
 					{#each data.buckets as bucket}
-						<Table.Row class="border-b border-border/50 last:border-0 hover:bg-muted/20">
-							<Table.Cell>
-								<a href="/s3/{encodeURIComponent(bucket.name)}" class="font-medium hover:text-primary transition-colors">
+						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
+							<td class="px-4 py-3">
+								<a href="/s3/{encodeURIComponent(bucket.name)}" class="font-medium text-foreground hover:text-primary transition-colors">
 									{bucket.name}
 								</a>
-							</Table.Cell>
-							<Table.Cell class="font-mono text-xs text-muted-foreground">{formatDate(bucket.creationDate)}</Table.Cell>
-							<Table.Cell class="text-right">
+							</td>
+							<td class="px-4 py-3 font-mono text-xs text-muted-foreground">{formatDate(bucket.creationDate)}</td>
+							<td class="px-4 py-3 text-right">
 								<div class="flex items-center justify-end gap-1">
 									<Button variant="ghost" size="sm" class="h-7 px-2 text-xs" href="/s3/{encodeURIComponent(bucket.name)}">
 										Open
@@ -92,11 +92,11 @@
 										Delete
 									</Button>
 								</div>
-							</Table.Cell>
-						</Table.Row>
+							</td>
+						</tr>
 					{/each}
-				</Table.Body>
-			</Table.Root>
+				</tbody>
+			</table>
 		</div>
 	{/if}
 </div>
