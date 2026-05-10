@@ -1,14 +1,15 @@
 import { getFunction, invokeFunction } from '$lib/server/lambda';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
+import type { LambdaFunctionDetail } from '$lib/types/lambda';
 
 export async function load({ params }) {
 	const name = decodeURIComponent(params.name);
-	try {
-		const fn = await getFunction(name);
-		return { fn, error: null };
-	} catch (e) {
-		return { fn: null, error: String(e) };
-	}
+	const { data: fn, error } = await safeLoad(
+		() => getFunction(name),
+		null as LambdaFunctionDetail | null
+	);
+	return { fn, name, error };
 }
 
 export const actions = {

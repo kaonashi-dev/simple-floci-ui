@@ -1,13 +1,10 @@
 import { listTables, deleteTable } from '$lib/server/dynamodb';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
 
 export async function load() {
-	try {
-		const tables = await listTables();
-		return { tables, error: null };
-	} catch (e) {
-		return { tables: [], error: String(e) };
-	}
+	const { data: tables, error } = await safeLoad(listTables, []);
+	return { tables, error };
 }
 
 export const actions = {

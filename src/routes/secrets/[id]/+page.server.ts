@@ -1,14 +1,15 @@
 import { getSecretValue, updateSecretValue } from '$lib/server/secrets';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
+import type { SecretDetail } from '$lib/types/secrets';
 
 export async function load({ params }) {
 	const arn = decodeURIComponent(params.id);
-	try {
-		const secret = await getSecretValue(arn);
-		return { secret, error: null };
-	} catch (e) {
-		return { secret: null, error: String(e) };
-	}
+	const { data: secret, error } = await safeLoad(
+		() => getSecretValue(arn),
+		null as SecretDetail | null
+	);
+	return { secret, error };
 }
 
 export const actions = {

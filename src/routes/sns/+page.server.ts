@@ -1,13 +1,10 @@
 import { listTopics, createTopic, deleteTopic } from '$lib/server/sns';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
 
 export async function load() {
-	try {
-		const topics = await listTopics();
-		return { topics, error: null };
-	} catch (e) {
-		return { topics: [], error: String(e) };
-	}
+	const { data: topics, error } = await safeLoad(listTopics, []);
+	return { topics, error };
 }
 
 export const actions = {

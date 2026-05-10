@@ -1,14 +1,11 @@
 import { listLogStreams, filterLogEvents } from '$lib/server/logs';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
 
 export async function load({ params }) {
 	const groupName = decodeURIComponent(params.group);
-	try {
-		const streams = await listLogStreams(groupName);
-		return { groupName, streams, error: null };
-	} catch (e) {
-		return { groupName, streams: [], error: String(e) };
-	}
+	const { data: streams, error } = await safeLoad(() => listLogStreams(groupName), []);
+	return { groupName, streams, error };
 }
 
 export const actions = {

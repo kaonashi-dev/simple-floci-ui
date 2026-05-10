@@ -1,10 +1,7 @@
 import { listEventBuses } from '$lib/server/eventbridge';
+import { safeLoad } from '$lib/server/load';
 
 export async function load() {
-	try {
-		const buses = await listEventBuses();
-		return { buses, error: null };
-	} catch (e) {
-		return { buses: [], error: String(e) };
-	}
+	const { data: buses, error } = await safeLoad(listEventBuses, []);
+	return { buses, error };
 }

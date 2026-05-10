@@ -10,16 +10,21 @@ import {
 	enableKeyRotation,
 	disableKeyRotation
 } from '$lib/server/kms';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
+import type { KmsKeyDetail, KmsAlias } from '$lib/types/kms';
 
 export async function load({ params }) {
 	const keyId = decodeURIComponent(params.keyId);
-	try {
-		const [key, aliases] = await Promise.all([describeKey(keyId), listAliases(keyId)]);
-		return { key, aliases, keyId, error: null };
-	} catch (e) {
-		return { key: null, aliases: [], keyId, error: String(e) };
-	}
+	const { data, error } = await safeLoad(
+		() =>
+			Promise.all([describeKey(keyId), listAliases(keyId)]).then(([key, aliases]) => ({
+				key,
+				aliases
+			})),
+		{ key: null as KmsKeyDetail | null, aliases: [] as KmsAlias[] }
+	);
+	return { ...data, keyId, error };
 }
 
 export const actions = {

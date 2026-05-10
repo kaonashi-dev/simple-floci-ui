@@ -1,13 +1,10 @@
 import { listKeys, createKey, scheduleKeyDeletion, enableKey, disableKey } from '$lib/server/kms';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
 
 export async function load() {
-	try {
-		const keys = await listKeys();
-		return { keys, error: null };
-	} catch (e) {
-		return { keys: [], error: String(e) };
-	}
+	const { data: keys, error } = await safeLoad(listKeys, []);
+	return { keys, error };
 }
 
 export const actions = {

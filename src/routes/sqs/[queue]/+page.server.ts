@@ -6,18 +6,20 @@ import {
 	deleteMessage,
 	purgeQueue
 } from '$lib/server/sqs';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
 import type { SqsMessage } from '$lib/types/sqs';
 
 export async function load({ params }) {
 	const name = decodeURIComponent(params.queue);
-	try {
-		const url = await getQueueUrl(name);
-		const attributes = await getQueueAttributes(url);
-		return { name, url, attributes, error: null };
-	} catch (e) {
-		return { name, url: null, attributes: {}, error: String(e) };
-	}
+	const { data, error } = await safeLoad(
+		async () => {
+			const url = await getQueueUrl(name);
+			return { url, attributes: await getQueueAttributes(url) };
+		},
+		{ url: null as string | null, attributes: {} as Record<string, string> }
+	);
+	return { name, url: data.url, attributes: data.attributes, error };
 }
 
 export const actions = {

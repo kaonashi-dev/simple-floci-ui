@@ -1,13 +1,10 @@
 import { listSecrets, createSecret, deleteSecret } from '$lib/server/secrets';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
 
 export async function load() {
-	try {
-		const secrets = await listSecrets();
-		return { secrets, error: null };
-	} catch (e) {
-		return { secrets: [], error: String(e) };
-	}
+	const { data: secrets, error } = await safeLoad(listSecrets, []);
+	return { secrets, error };
 }
 
 export const actions = {

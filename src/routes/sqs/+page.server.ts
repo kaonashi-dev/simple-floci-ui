@@ -1,13 +1,10 @@
 import { listQueues, createQueue, deleteQueue } from '$lib/server/sqs';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
 
 export async function load() {
-	try {
-		const queues = await listQueues();
-		return { queues, error: null };
-	} catch (e) {
-		return { queues: [], error: String(e) };
-	}
+	const { data: queues, error } = await safeLoad(listQueues, []);
+	return { queues, error };
 }
 
 export const actions = {

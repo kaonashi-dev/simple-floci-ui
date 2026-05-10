@@ -1,10 +1,7 @@
 import { listLogGroups } from '$lib/server/logs';
+import { safeLoad } from '$lib/server/load';
 
 export async function load() {
-	try {
-		const groups = await listLogGroups();
-		return { groups, error: null };
-	} catch (e) {
-		return { groups: [], error: String(e) };
-	}
+	const { data: groups, error } = await safeLoad(listLogGroups, []);
+	return { groups, error };
 }
