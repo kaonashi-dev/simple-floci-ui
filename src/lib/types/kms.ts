@@ -8,6 +8,7 @@ export type KmsKeySummary = {
 	keySpec?: string;
 	creationDate?: string;
 	rotationEnabled?: boolean;
+	enrichmentError?: string;
 };
 
 export type KmsKeyDetail = KmsKeySummary & {

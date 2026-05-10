@@ -80,6 +80,9 @@
 										{queue.name}
 									</a>
 									<CopyButton text={queue.url} label="URL" />
+									{#if queue.enrichmentError}
+										<span title={queue.enrichmentError} class="console-tag border-amber-300/30 text-amber-600 bg-amber-50/50 dark:bg-amber-950/20">partial</span>
+									{/if}
 								</div>
 							</td>
 							<td class="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">

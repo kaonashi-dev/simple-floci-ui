@@ -108,9 +108,13 @@
 								</div>
 							</td>
 							<td class="px-4 py-3">
-								<span class={cn('console-tag', stateClass(key.keyState))}>
-									{key.keyState ?? '—'}
-								</span>
+								{#if key.enrichmentError}
+									<span title={key.enrichmentError} class="console-tag border-amber-300/30 text-amber-600 bg-amber-50/50 dark:bg-amber-950/20">partial</span>
+								{:else}
+									<span class={cn('console-tag', stateClass(key.keyState))}>
+										{key.keyState ?? '—'}
+									</span>
+								{/if}
 							</td>
 							<td class="px-4 py-3 font-mono text-xs text-muted-foreground">
 								{key.keyUsage?.replace('_', ' ') ?? '—'}
