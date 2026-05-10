@@ -6,24 +6,35 @@
 	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
 	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import LayoutDashboardIcon from '@lucide/svelte/icons/layout-dashboard';
+	import LockIcon from '@lucide/svelte/icons/lock';
 	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
+	import NetworkIcon from '@lucide/svelte/icons/network';
 	import RadioTowerIcon from '@lucide/svelte/icons/radio-tower';
+	import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
+	import ShieldIcon from '@lucide/svelte/icons/shield';
 	import SigmaIcon from '@lucide/svelte/icons/sigma';
+	import SlidersIcon from '@lucide/svelte/icons/sliders';
 	import UsersRoundIcon from '@lucide/svelte/icons/users-round';
+	import ZapIcon from '@lucide/svelte/icons/zap';
 
 	const links = [
 		{ href: '/', label: 'Dashboard', icon: LayoutDashboardIcon },
 		{ href: '/sqs', label: 'SQS', icon: MessageSquareIcon },
 		{ href: '/s3', label: 'S3', icon: HardDriveIcon },
 		{ href: '/cognito', label: 'Cognito', icon: UsersRoundIcon },
-		{ href: '/kms', label: 'KMS', icon: KeyRoundIcon }
+		{ href: '/kms', label: 'KMS', icon: KeyRoundIcon },
+		{ href: '/lambda', label: 'Lambda', icon: SigmaIcon },
+		{ href: '/dynamodb', label: 'DynamoDB', icon: DatabaseIcon },
+		{ href: '/sns', label: 'SNS', icon: RadioTowerIcon },
+		{ href: '/apigateway', label: 'API Gateway', icon: NetworkIcon },
+		{ href: '/iam', label: 'IAM', icon: ShieldIcon },
+		{ href: '/logs', label: 'CloudWatch Logs', icon: ScrollTextIcon },
+		{ href: '/eventbridge', label: 'EventBridge', icon: ZapIcon },
+		{ href: '/secrets', label: 'Secrets Manager', icon: LockIcon },
+		{ href: '/ssm', label: 'SSM Params', icon: SlidersIcon }
 	];
 
-	const disabled = [
-		{ label: 'DynamoDB', icon: DatabaseIcon },
-		{ label: 'Lambda', icon: SigmaIcon },
-		{ label: 'SNS', icon: RadioTowerIcon }
-	];
+	const disabled: { label: string; icon: typeof LayoutDashboardIcon }[] = [];
 
 	let { onNavigate }: { onNavigate?: () => void } = $props();
 
@@ -63,6 +74,7 @@
 			</a>
 		{/each}
 
+		{#if disabled.length > 0}
 		<div class="my-3 h-px bg-sidebar-border/70"></div>
 		<p class="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/30">Coming Soon</p>
 
@@ -74,5 +86,6 @@
 				<span class="ml-auto rounded border border-sidebar-border/50 px-1 py-px font-mono text-[9px] text-sidebar-foreground/30">soon</span>
 			</div>
 		{/each}
+		{/if}
 	</div>
 </nav>
