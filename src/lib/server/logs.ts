@@ -5,22 +5,18 @@ import {
 	GetLogEventsCommand,
 	FilterLogEventsCommand
 } from '@aws-sdk/client-cloudwatch-logs';
-import { awsConfig } from './aws';
+import { makeClient, paginateAll } from './aws';
 import type { LogGroupSummary, LogStreamSummary, LogEvent } from '$lib/types/logs';
 
-function client() {
-	return new CloudWatchLogsClient(awsConfig);
-}
+const cw = makeClient(CloudWatchLogsClient);
 
 export async function listLogGroups(prefix?: string): Promise<LogGroupSummary[]> {
-	const cw = client();
-	const groups = [];
-	let nextToken: string | undefined;
-	do {
-		const res = await cw.send(new DescribeLogGroupsCommand({ logGroupNamePrefix: prefix, nextToken }));
-		if (res.logGroups) groups.push(...res.logGroups);
-		nextToken = res.nextToken;
-	} while (nextToken);
+	const groups = await paginateAll((token) =>
+		cw.send(new DescribeLogGroupsCommand({ logGroupNamePrefix: prefix, nextToken: token })).then((res) => ({
+			items: res.logGroups ?? [],
+			nextToken: res.nextToken
+		}))
+	);
 	return groups.map((g) => ({
 		name: g.logGroupName!,
 		arn: g.arn,
@@ -31,7 +27,6 @@ export async function listLogGroups(prefix?: string): Promise<LogGroupSummary[]>
 }
 
 export async function listLogStreams(groupName: string): Promise<LogStreamSummary[]> {
-	const cw = client();
 	const streams = [];
 	let nextToken: string | undefined;
 	do {
@@ -62,7 +57,6 @@ export async function getLogEvents(
 	streamName: string,
 	limit = 100
 ): Promise<LogEvent[]> {
-	const cw = client();
 	const res = await cw.send(
 		new GetLogEventsCommand({
 			logGroupName: groupName,
@@ -85,7 +79,6 @@ export async function filterLogEvents(
 	pattern: string,
 	limit = 100
 ): Promise<LogEvent[]> {
-	const cw = client();
 	const res = await cw.send(
 		new FilterLogEventsCommand({
 			logGroupName: groupName,

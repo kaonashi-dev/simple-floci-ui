@@ -17,7 +17,7 @@ import {
 	DeleteGroupCommand,
 	DeliveryMediumType
 } from '@aws-sdk/client-cognito-identity-provider';
-import { awsConfig } from './aws';
+import { makeClient, awsConfigNoPathStyle, paginateAll } from './aws';
 import type {
 	CognitoUserPoolSummary,
 	CognitoUserPoolDetail,
@@ -25,37 +25,25 @@ import type {
 	CognitoGroup
 } from '$lib/types/cognito';
 
-function client() {
-	return new CognitoIdentityProviderClient({
-		region: awsConfig.region,
-		endpoint: awsConfig.endpoint,
-		credentials: awsConfig.credentials
-	});
-}
+const cognito = makeClient(CognitoIdentityProviderClient, awsConfigNoPathStyle);
 
 export async function listUserPools(): Promise<CognitoUserPoolSummary[]> {
-	const cognito = client();
-	const pools: CognitoUserPoolSummary[] = [];
-	let nextToken: string | undefined;
-
-	do {
-		const res = await cognito.send(new ListUserPoolsCommand({ MaxResults: 60, NextToken: nextToken }));
-		for (const p of res.UserPools ?? []) {
-			pools.push({
-				id: p.Id!,
-				name: p.Name!,
-				creationDate: p.CreationDate?.toISOString(),
-				lastModifiedDate: p.LastModifiedDate?.toISOString()
-			});
-		}
-		nextToken = res.NextToken;
-	} while (nextToken);
-
-	return pools;
+	return paginateAll((token) =>
+		cognito
+			.send(new ListUserPoolsCommand({ MaxResults: 60, NextToken: token }))
+			.then((res) => ({
+				items: (res.UserPools ?? []).map((p) => ({
+					id: p.Id!,
+					name: p.Name!,
+					creationDate: p.CreationDate?.toISOString(),
+					lastModifiedDate: p.LastModifiedDate?.toISOString()
+				})),
+				nextToken: res.NextToken
+			}))
+	);
 }
 
 export async function describeUserPool(poolId: string): Promise<CognitoUserPoolDetail> {
-	const cognito = client();
 	const res = await cognito.send(new DescribeUserPoolCommand({ UserPoolId: poolId }));
 	const p = res.UserPool!;
 	return {
@@ -71,49 +59,43 @@ export async function describeUserPool(poolId: string): Promise<CognitoUserPoolD
 }
 
 export async function createUserPool(name: string): Promise<void> {
-	const cognito = client();
 	await cognito.send(new CreateUserPoolCommand({ PoolName: name }));
 }
 
 export async function deleteUserPool(poolId: string): Promise<void> {
-	const cognito = client();
 	await cognito.send(new DeleteUserPoolCommand({ UserPoolId: poolId }));
 }
 
 export async function listUsers(poolId: string, filter?: string): Promise<CognitoUser[]> {
-	const cognito = client();
-	const users: CognitoUser[] = [];
-	let paginationToken: string | undefined;
-
-	do {
-		const res = await cognito.send(
-			new ListUsersCommand({
-				UserPoolId: poolId,
-				Limit: 60,
-				PaginationToken: paginationToken,
-				Filter: filter || undefined
-			})
-		);
-
-		for (const u of res.Users ?? []) {
-			const attrs: Record<string, string> = {};
-			for (const a of u.Attributes ?? []) {
-				if (a.Name) attrs[a.Name] = a.Value ?? '';
-			}
-			users.push({
-				username: u.Username!,
-				status: u.UserStatus,
-				enabled: u.Enabled ?? true,
-				createdAt: u.UserCreateDate?.toISOString(),
-				updatedAt: u.UserLastModifiedDate?.toISOString(),
-				email: attrs['email'],
-				attributes: attrs
-			});
-		}
-		paginationToken = res.PaginationToken;
-	} while (paginationToken);
-
-	return users;
+	return paginateAll((token) =>
+		cognito
+			.send(
+				new ListUsersCommand({
+					UserPoolId: poolId,
+					Limit: 60,
+					PaginationToken: token,
+					Filter: filter || undefined
+				})
+			)
+			.then((res) => ({
+				items: (res.Users ?? []).map((u) => {
+					const attrs: Record<string, string> = {};
+					for (const a of u.Attributes ?? []) {
+						if (a.Name) attrs[a.Name] = a.Value ?? '';
+					}
+					return {
+						username: u.Username!,
+						status: u.UserStatus,
+						enabled: u.Enabled ?? true,
+						createdAt: u.UserCreateDate?.toISOString(),
+						updatedAt: u.UserLastModifiedDate?.toISOString(),
+						email: attrs['email'],
+						attributes: attrs
+					};
+				}),
+				nextToken: res.PaginationToken
+			}))
+	);
 }
 
 export async function createUser(
@@ -122,7 +104,6 @@ export async function createUser(
 	email: string,
 	tempPassword: string
 ): Promise<void> {
-	const cognito = client();
 	await cognito.send(
 		new AdminCreateUserCommand({
 			UserPoolId: poolId,
@@ -140,7 +121,6 @@ export async function updateUserAttributes(
 	username: string,
 	attributes: Record<string, string>
 ): Promise<void> {
-	const cognito = client();
 	await cognito.send(
 		new AdminUpdateUserAttributesCommand({
 			UserPoolId: poolId,
@@ -151,22 +131,18 @@ export async function updateUserAttributes(
 }
 
 export async function deleteUser(poolId: string, username: string): Promise<void> {
-	const cognito = client();
 	await cognito.send(new AdminDeleteUserCommand({ UserPoolId: poolId, Username: username }));
 }
 
 export async function enableUser(poolId: string, username: string): Promise<void> {
-	const cognito = client();
 	await cognito.send(new AdminEnableUserCommand({ UserPoolId: poolId, Username: username }));
 }
 
 export async function disableUser(poolId: string, username: string): Promise<void> {
-	const cognito = client();
 	await cognito.send(new AdminDisableUserCommand({ UserPoolId: poolId, Username: username }));
 }
 
 export async function resetUserPassword(poolId: string, username: string): Promise<void> {
-	const cognito = client();
 	await cognito.send(
 		new AdminResetUserPasswordCommand({ UserPoolId: poolId, Username: username })
 	);
@@ -176,9 +152,8 @@ export async function setUserPassword(
 	poolId: string,
 	username: string,
 	password: string,
-	permanent: boolean = true
+	permanent = true
 ): Promise<void> {
-	const cognito = client();
 	await cognito.send(
 		new AdminSetUserPasswordCommand({
 			UserPoolId: poolId,
@@ -190,26 +165,19 @@ export async function setUserPassword(
 }
 
 export async function listGroups(poolId: string): Promise<CognitoGroup[]> {
-	const cognito = client();
-	const groups: CognitoGroup[] = [];
-	let nextToken: string | undefined;
-
-	do {
-		const res = await cognito.send(
-			new ListGroupsCommand({ UserPoolId: poolId, Limit: 60, NextToken: nextToken })
-		);
-		for (const g of res.Groups ?? []) {
-			groups.push({
-				name: g.GroupName!,
-				description: g.Description,
-				creationDate: g.CreationDate?.toISOString(),
-				lastModifiedDate: g.LastModifiedDate?.toISOString()
-			});
-		}
-		nextToken = res.NextToken;
-	} while (nextToken);
-
-	return groups;
+	return paginateAll((token) =>
+		cognito
+			.send(new ListGroupsCommand({ UserPoolId: poolId, Limit: 60, NextToken: token }))
+			.then((res) => ({
+				items: (res.Groups ?? []).map((g) => ({
+					name: g.GroupName!,
+					description: g.Description,
+					creationDate: g.CreationDate?.toISOString(),
+					lastModifiedDate: g.LastModifiedDate?.toISOString()
+				})),
+				nextToken: res.NextToken
+			}))
+	);
 }
 
 export async function createGroup(
@@ -217,7 +185,6 @@ export async function createGroup(
 	name: string,
 	description?: string
 ): Promise<void> {
-	const cognito = client();
 	await cognito.send(
 		new CreateGroupCommand({
 			UserPoolId: poolId,
@@ -228,6 +195,5 @@ export async function createGroup(
 }
 
 export async function deleteGroup(poolId: string, name: string): Promise<void> {
-	const cognito = client();
 	await cognito.send(new DeleteGroupCommand({ UserPoolId: poolId, GroupName: name }));
 }

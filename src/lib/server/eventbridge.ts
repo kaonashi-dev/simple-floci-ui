@@ -6,34 +6,28 @@ import {
 	EnableRuleCommand,
 	DisableRuleCommand
 } from '@aws-sdk/client-eventbridge';
-import { awsConfig } from './aws';
+import { makeClient, paginateAll } from './aws';
 import type { EventBusSummary, EventRuleSummary, EventRuleTarget } from '$lib/types/eventbridge';
 
-function client() {
-	return new EventBridgeClient(awsConfig);
-}
+const eb = makeClient(EventBridgeClient);
 
 export async function listEventBuses(): Promise<EventBusSummary[]> {
-	const eb = client();
-	const buses = [];
-	let nextToken: string | undefined;
-	do {
-		const res = await eb.send(new ListEventBusesCommand({ NextToken: nextToken }));
-		if (res.EventBuses) buses.push(...res.EventBuses);
-		nextToken = res.NextToken;
-	} while (nextToken);
+	const buses = await paginateAll((token) =>
+		eb.send(new ListEventBusesCommand({ NextToken: token })).then((res) => ({
+			items: res.EventBuses ?? [],
+			nextToken: res.NextToken
+		}))
+	);
 	return buses.map((b) => ({ name: b.Name!, arn: b.Arn! }));
 }
 
 export async function listRules(busName: string): Promise<EventRuleSummary[]> {
-	const eb = client();
-	const rules = [];
-	let nextToken: string | undefined;
-	do {
-		const res = await eb.send(new ListRulesCommand({ EventBusName: busName, NextToken: nextToken }));
-		if (res.Rules) rules.push(...res.Rules);
-		nextToken = res.NextToken;
-	} while (nextToken);
+	const rules = await paginateAll((token) =>
+		eb.send(new ListRulesCommand({ EventBusName: busName, NextToken: token })).then((res) => ({
+			items: res.Rules ?? [],
+			nextToken: res.NextToken
+		}))
+	);
 	return rules.map((r) => ({
 		name: r.Name!,
 		arn: r.Arn,
@@ -45,17 +39,14 @@ export async function listRules(busName: string): Promise<EventRuleSummary[]> {
 }
 
 export async function listTargetsByRule(ruleName: string, busName: string): Promise<EventRuleTarget[]> {
-	const eb = client();
 	const res = await eb.send(new ListTargetsByRuleCommand({ Rule: ruleName, EventBusName: busName }));
 	return (res.Targets ?? []).map((t) => ({ id: t.Id!, arn: t.Arn!, input: t.Input }));
 }
 
 export async function enableRule(ruleName: string, busName: string): Promise<void> {
-	const eb = client();
 	await eb.send(new EnableRuleCommand({ Name: ruleName, EventBusName: busName }));
 }
 
 export async function disableRule(ruleName: string, busName: string): Promise<void> {
-	const eb = client();
 	await eb.send(new DisableRuleCommand({ Name: ruleName, EventBusName: busName }));
 }

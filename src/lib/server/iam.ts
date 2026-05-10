@@ -7,28 +7,25 @@ import {
   ListAttachedUserPoliciesCommand
 } from '@aws-sdk/client-iam';
 import { STSClient, GetCallerIdentityCommand } from '@aws-sdk/client-sts';
-import { awsConfig } from './aws';
+import { makeClient, paginateAll } from './aws';
 import type { StsIdentity, IamUserSummary, IamRoleSummary, IamPolicySummary, IamUserDetail } from '$lib/types/iam';
 
-function iamClient() { return new IAMClient(awsConfig); }
-function stsClient() { return new STSClient(awsConfig); }
+const iam = makeClient(IAMClient);
+const sts = makeClient(STSClient);
 
 export async function getCallerIdentity(): Promise<StsIdentity> {
-  const sts = stsClient();
   const res = await sts.send(new GetCallerIdentityCommand({}));
   return { accountId: res.Account!, userId: res.UserId!, arn: res.Arn! };
 }
 
 export async function listUsers(): Promise<IamUserSummary[]> {
-  const iam = iamClient();
-  const users = [];
-  let marker: string | undefined;
-  do {
-    const res = await iam.send(new ListUsersCommand({ Marker: marker }));
-    if (res.Users) users.push(...res.Users);
-    marker = res.Marker;
-  } while (marker);
-  return users.map(u => ({
+  const users = await paginateAll((token) =>
+    iam.send(new ListUsersCommand({ Marker: token })).then((res) => ({
+      items: res.Users ?? [],
+      nextToken: res.Marker
+    }))
+  );
+  return users.map((u) => ({
     username: u.UserName!,
     arn: u.Arn!,
     userId: u.UserId!,
@@ -38,15 +35,13 @@ export async function listUsers(): Promise<IamUserSummary[]> {
 }
 
 export async function listRoles(): Promise<IamRoleSummary[]> {
-  const iam = iamClient();
-  const roles = [];
-  let marker: string | undefined;
-  do {
-    const res = await iam.send(new ListRolesCommand({ Marker: marker }));
-    if (res.Roles) roles.push(...res.Roles);
-    marker = res.Marker;
-  } while (marker);
-  return roles.map(r => ({
+  const roles = await paginateAll((token) =>
+    iam.send(new ListRolesCommand({ Marker: token })).then((res) => ({
+      items: res.Roles ?? [],
+      nextToken: res.Marker
+    }))
+  );
+  return roles.map((r) => ({
     roleName: r.RoleName!,
     arn: r.Arn!,
     roleId: r.RoleId!,
@@ -56,15 +51,13 @@ export async function listRoles(): Promise<IamRoleSummary[]> {
 }
 
 export async function listLocalPolicies(): Promise<IamPolicySummary[]> {
-  const iam = iamClient();
-  const policies = [];
-  let marker: string | undefined;
-  do {
-    const res = await iam.send(new ListPoliciesCommand({ Scope: 'Local', Marker: marker }));
-    if (res.Policies) policies.push(...res.Policies);
-    marker = res.Marker;
-  } while (marker);
-  return policies.map(p => ({
+  const policies = await paginateAll((token) =>
+    iam.send(new ListPoliciesCommand({ Scope: 'Local', Marker: token })).then((res) => ({
+      items: res.Policies ?? [],
+      nextToken: res.Marker
+    }))
+  );
+  return policies.map((p) => ({
     policyName: p.PolicyName!,
     arn: p.Arn!,
     policyId: p.PolicyId!,
@@ -75,17 +68,16 @@ export async function listLocalPolicies(): Promise<IamPolicySummary[]> {
 }
 
 export async function getUserDetail(username: string): Promise<IamUserDetail> {
-  const iam = iamClient();
   const [groupsRes, policiesRes] = await Promise.all([
     iam.send(new ListGroupsForUserCommand({ UserName: username })),
     iam.send(new ListAttachedUserPoliciesCommand({ UserName: username }))
   ]);
   const users = await listUsers();
-  const user = users.find(u => u.username === username)!;
+  const user = users.find((u) => u.username === username)!;
   return {
     ...user,
-    groups: (groupsRes.Groups ?? []).map(g => g.GroupName!),
-    attachedPolicies: (policiesRes.AttachedPolicies ?? []).map(p => ({
+    groups: (groupsRes.Groups ?? []).map((g) => g.GroupName!),
+    attachedPolicies: (policiesRes.AttachedPolicies ?? []).map((p) => ({
       policyName: p.PolicyName!,
       policyArn: p.PolicyArn!
     }))

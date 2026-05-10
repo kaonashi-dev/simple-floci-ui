@@ -11,25 +11,20 @@ import {
 	PurgeQueueCommand,
 	QueueAttributeName
 } from '@aws-sdk/client-sqs';
-import { awsConfig } from './aws';
+import { makeClient, paginateAll } from './aws';
 import type { SqsQueueSummary, SqsMessage } from '$lib/types/sqs';
 
-function client() {
-	return new SQSClient(awsConfig);
-}
+const sqs = makeClient(SQSClient);
 
 export async function listQueues(): Promise<SqsQueueSummary[]> {
-	const sqs = client();
-	const urls: string[] = [];
-	let nextToken: string | undefined;
+	const urls = await paginateAll((token) =>
+		sqs.send(new ListQueuesCommand({ NextToken: token })).then((res) => ({
+			items: res.QueueUrls ?? [],
+			nextToken: res.NextToken
+		}))
+	);
 
-	do {
-		const res = await sqs.send(new ListQueuesCommand({ NextToken: nextToken }));
-		if (res.QueueUrls) urls.push(...res.QueueUrls);
-		nextToken = res.NextToken;
-	} while (nextToken);
-
-	const summaries = await Promise.all(
+	return Promise.all(
 		urls.map(async (url) => {
 			const name = url.split('/').pop() ?? url;
 			try {
@@ -52,23 +47,19 @@ export async function listQueues(): Promise<SqsQueueSummary[]> {
 						attrs.Attributes?.ApproximateNumberOfMessagesNotVisible ?? 0
 					)
 				} satisfies SqsQueueSummary;
-			} catch {
-				return { name, url } satisfies SqsQueueSummary;
+			} catch (e) {
+				return { name, url, enrichmentError: String(e) } satisfies SqsQueueSummary;
 			}
 		})
 	);
-
-	return summaries;
 }
 
 export async function getQueueUrl(name: string): Promise<string> {
-	const sqs = client();
 	const res = await sqs.send(new GetQueueUrlCommand({ QueueName: name }));
 	return res.QueueUrl!;
 }
 
 export async function getQueueAttributes(queueUrl: string): Promise<Record<string, string>> {
-	const sqs = client();
 	const res = await sqs.send(
 		new GetQueueAttributesCommand({ QueueUrl: queueUrl, AttributeNames: ['All'] })
 	);
@@ -76,22 +67,18 @@ export async function getQueueAttributes(queueUrl: string): Promise<Record<strin
 }
 
 export async function createQueue(name: string): Promise<void> {
-	const sqs = client();
 	await sqs.send(new CreateQueueCommand({ QueueName: name }));
 }
 
 export async function deleteQueue(queueUrl: string): Promise<void> {
-	const sqs = client();
 	await sqs.send(new DeleteQueueCommand({ QueueUrl: queueUrl }));
 }
 
 export async function sendMessage(queueUrl: string, body: string): Promise<void> {
-	const sqs = client();
 	await sqs.send(new SendMessageCommand({ QueueUrl: queueUrl, MessageBody: body }));
 }
 
 export async function receiveMessages(queueUrl: string, maxMessages = 10): Promise<SqsMessage[]> {
-	const sqs = client();
 	const res = await sqs.send(
 		new ReceiveMessageCommand({
 			QueueUrl: queueUrl,
@@ -111,11 +98,9 @@ export async function receiveMessages(queueUrl: string, maxMessages = 10): Promi
 }
 
 export async function deleteMessage(queueUrl: string, receiptHandle: string): Promise<void> {
-	const sqs = client();
 	await sqs.send(new DeleteMessageCommand({ QueueUrl: queueUrl, ReceiptHandle: receiptHandle }));
 }
 
 export async function purgeQueue(queueUrl: string): Promise<void> {
-	const sqs = client();
 	await sqs.send(new PurgeQueueCommand({ QueueUrl: queueUrl }));
 }
