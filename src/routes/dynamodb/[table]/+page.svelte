@@ -5,16 +5,22 @@
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import { formatDate } from '$lib/utils/formatDate';
 	import { formatBytes } from '$lib/utils/formatBytes';
+	import { untrack } from 'svelte';
 	import type { DynamoItem } from '$lib/types/dynamodb';
 
 	let { data, form } = $props();
 
-	let items: DynamoItem[] = $state(data.scan?.items ?? []);
-	let lastEvaluatedKey = $state(data.scan?.lastEvaluatedKey);
+	let items: DynamoItem[] = $state([]);
+	let lastEvaluatedKey: Record<string, unknown> | undefined = $state(undefined);
+
+	$effect(() => {
+		items = data.scan?.items ?? [];
+		lastEvaluatedKey = data.scan?.lastEvaluatedKey;
+	});
 
 	$effect(() => {
 		if (form?.action === 'loadMore' && form.scan) {
-			items = [...items, ...(form.scan.items as DynamoItem[])];
+			items = [...untrack(() => items), ...(form.scan.items as DynamoItem[])];
 			lastEvaluatedKey = form.scan.lastEvaluatedKey;
 		}
 	});
