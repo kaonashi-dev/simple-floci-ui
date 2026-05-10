@@ -1,12 +1,16 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import './layout.css';
 	import Header from '$lib/components/Header.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import favicon from '$lib/assets/favicon.svg';
+	import { theme } from '$lib/stores/theme.svelte';
 
 	let { data, children } = $props();
 
 	let sidebarOpen = $state(false);
+
+	onMount(() => theme.init());
 </script>
 
 <svelte:head>
