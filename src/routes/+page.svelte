@@ -3,10 +3,15 @@
 	import DatabaseIcon from '@lucide/svelte/icons/database';
 	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
 	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
+	import LockIcon from '@lucide/svelte/icons/lock';
 	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
+	import NetworkIcon from '@lucide/svelte/icons/network';
 	import RadioTowerIcon from '@lucide/svelte/icons/radio-tower';
-	import SigmaIcon from '@lucide/svelte/icons/sigma';
+	import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
 	import ShieldAlertIcon from '@lucide/svelte/icons/shield-alert';
+	import ShieldIcon from '@lucide/svelte/icons/shield';
+	import SigmaIcon from '@lucide/svelte/icons/sigma';
+	import SlidersIcon from '@lucide/svelte/icons/sliders';
 	import UsersRoundIcon from '@lucide/svelte/icons/users-round';
 	import ZapIcon from '@lucide/svelte/icons/zap';
 
@@ -52,14 +57,100 @@
 			error: data.kmsError,
 			unit: 'key',
 			icon: KeyRoundIcon
+		},
+		{
+			href: '/lambda',
+			label: 'Lambda',
+			subtitle: 'Serverless Compute',
+			description: 'List and invoke local Lambda functions.',
+			count: data.lambdaCount,
+			error: data.lambdaError,
+			unit: 'function',
+			icon: SigmaIcon
+		},
+		{
+			href: '/dynamodb',
+			label: 'DynamoDB',
+			subtitle: 'NoSQL Database',
+			description: 'Browse tables and scan items.',
+			count: data.dynamoCount,
+			error: data.dynamoError,
+			unit: 'table',
+			icon: DatabaseIcon
+		},
+		{
+			href: '/sns',
+			label: 'SNS',
+			subtitle: 'Simple Notification Service',
+			description: 'Manage topics and publish messages.',
+			count: data.snsCount,
+			error: data.snsError,
+			unit: 'topic',
+			icon: RadioTowerIcon
+		},
+		{
+			href: '/apigateway',
+			label: 'API Gateway',
+			subtitle: 'REST & HTTP APIs',
+			description: 'Inspect REST and HTTP APIs and their routes.',
+			count: data.apiGwCount,
+			error: data.apiGwError,
+			unit: 'REST API',
+			icon: NetworkIcon
+		},
+		{
+			href: '/iam',
+			label: 'IAM',
+			subtitle: 'Identity & Access Management',
+			description: 'Browse users, roles, and local policies.',
+			count: data.iamCount,
+			error: data.iamError,
+			unit: 'user',
+			icon: ShieldIcon
+		},
+		{
+			href: '/logs',
+			label: 'CloudWatch Logs',
+			subtitle: 'Log Management',
+			description: 'Browse log groups, streams, and events.',
+			count: data.logsCount,
+			error: data.logsError,
+			unit: 'log group',
+			icon: ScrollTextIcon
+		},
+		{
+			href: '/eventbridge',
+			label: 'EventBridge',
+			subtitle: 'Event Bus',
+			description: 'Manage event buses and rules.',
+			count: data.eventBridgeCount,
+			error: data.eventBridgeError,
+			unit: 'bus',
+			icon: ZapIcon
+		},
+		{
+			href: '/secrets',
+			label: 'Secrets Manager',
+			subtitle: 'Secret Storage',
+			description: 'View and manage application secrets.',
+			count: data.secretsCount,
+			error: data.secretsError,
+			unit: 'secret',
+			icon: LockIcon
+		},
+		{
+			href: '/ssm',
+			label: 'SSM Params',
+			subtitle: 'Parameter Store',
+			description: 'Browse and update SSM parameters.',
+			count: data.ssmCount,
+			error: data.ssmError,
+			unit: 'parameter',
+			icon: SlidersIcon
 		}
 	]);
 
-	const upcoming = [
-		{ label: 'DynamoDB', icon: DatabaseIcon },
-		{ label: 'Lambda', icon: SigmaIcon },
-		{ label: 'SNS', icon: RadioTowerIcon }
-	];
+	const upcoming: { label: string; icon: typeof MessageSquareIcon }[] = [];
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -148,6 +239,7 @@
 	</div>
 
 	<!-- Upcoming services -->
+	{#if upcoming.length > 0}
 	<div>
 		<h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">Upcoming Services</h2>
 		<div class="console-table-shell">
@@ -173,4 +265,5 @@
 			</table>
 		</div>
 	</div>
+	{/if}
 </div>
