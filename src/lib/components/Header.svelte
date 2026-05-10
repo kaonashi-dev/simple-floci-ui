@@ -1,6 +1,9 @@
 <script lang="ts">
 	import MenuIcon from '@lucide/svelte/icons/menu';
+	import MoonIcon from '@lucide/svelte/icons/moon';
 	import ServerCogIcon from '@lucide/svelte/icons/server-cog';
+	import SunIcon from '@lucide/svelte/icons/sun';
+	import { theme } from '$lib/stores/theme.svelte';
 	import type { ConnectionStatus } from '$lib/types/common';
 
 	let { connection, onMenuToggle }: { connection: ConnectionStatus; onMenuToggle?: () => void } = $props();
@@ -31,6 +34,18 @@
 	</code>
 
 	<div class="ml-auto flex items-center gap-2">
+		<button
+			onclick={theme.toggle}
+			class="flex size-7 items-center justify-center rounded text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+			aria-label={theme.dark ? 'Switch to light mode' : 'Switch to dark mode'}
+		>
+			{#if theme.dark}
+				<SunIcon class="size-3.5" />
+			{:else}
+				<MoonIcon class="size-3.5" />
+			{/if}
+		</button>
+
 		{#if connection.ok}
 			<div class="flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[11px]">
 				<span class="pulse-dot size-1.5 rounded-full bg-emerald-500"></span>
