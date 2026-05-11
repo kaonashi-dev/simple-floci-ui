@@ -1,17 +1,17 @@
 import { getTopicAttributes, listSubscriptions, publish } from '$lib/server/sns';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
 
 export async function load({ params }) {
 	const arn = decodeURIComponent(params.arn);
-	try {
-		const [attributes, subscriptions] = await Promise.all([
-			getTopicAttributes(arn),
-			listSubscriptions(arn)
-		]);
-		return { arn, attributes, subscriptions, error: null };
-	} catch (e) {
-		return { arn, attributes: {}, subscriptions: [], error: String(e) };
-	}
+	const { data, error } = await safeLoad(
+		() =>
+			Promise.all([getTopicAttributes(arn), listSubscriptions(arn)]).then(
+				([attributes, subscriptions]) => ({ attributes, subscriptions })
+			),
+		{ attributes: {} as Record<string, string>, subscriptions: [] }
+	);
+	return { arn, ...data, error };
 }
 
 export const actions = {

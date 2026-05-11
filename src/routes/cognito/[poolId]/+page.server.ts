@@ -12,26 +12,20 @@ import {
 	createGroup,
 	deleteGroup
 } from '$lib/server/cognito';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
+import type { CognitoUserPoolDetail } from '$lib/types/cognito';
 
 export async function load({ params }) {
 	const poolId = decodeURIComponent(params.poolId);
-	try {
-		const [pool, users, groups] = await Promise.all([
-			describeUserPool(poolId),
-			listUsers(poolId),
-			listGroups(poolId)
-		]);
-		return { pool, users, groups, poolId, error: null };
-	} catch (e) {
-		return {
-			pool: null,
-			users: [],
-			groups: [],
-			poolId,
-			error: String(e)
-		};
-	}
+	const { data, error } = await safeLoad(
+		() =>
+			Promise.all([describeUserPool(poolId), listUsers(poolId), listGroups(poolId)]).then(
+				([pool, users, groups]) => ({ pool: pool as CognitoUserPoolDetail | null, users, groups })
+			),
+		{ pool: null as CognitoUserPoolDetail | null, users: [], groups: [] }
+	);
+	return { ...data, poolId, error };
 }
 
 export const actions = {

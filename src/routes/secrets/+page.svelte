@@ -62,7 +62,7 @@
 			</div>
 			<div class="space-y-1.5">
 				<Label for="secret-value" class="text-xs">Value</Label>
-				<Textarea id="secret-value" name="value" placeholder='{"key": "value"} or any string' required rows={3} class="resize-none font-mono text-xs" />
+				<Textarea id="secret-value" name="value" placeholder={'{"key": "value"} or any string'} required rows={3} class="resize-none font-mono text-xs" />
 			</div>
 			<div class="flex gap-2">
 				<Button type="submit" size="sm">Create</Button>

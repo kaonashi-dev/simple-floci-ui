@@ -1,14 +1,11 @@
 import { listRules, enableRule, disableRule } from '$lib/server/eventbridge';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
 
 export async function load({ params }) {
 	const busName = decodeURIComponent(params.bus);
-	try {
-		const rules = await listRules(busName);
-		return { busName, rules, error: null };
-	} catch (e) {
-		return { busName, rules: [], error: String(e) };
-	}
+	const { data: rules, error } = await safeLoad(() => listRules(busName), []);
+	return { busName, rules, error };
 }
 
 export const actions = {

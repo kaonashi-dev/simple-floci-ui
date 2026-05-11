@@ -28,7 +28,7 @@
 			<svg class="h-3 w-3 text-border" fill="none" viewBox="0 0 6 10" stroke="currentColor" stroke-width="1.5">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M1 1l4 4-4 4"/>
 			</svg>
-			<span class="truncate font-medium text-foreground">{data.fn?.name ?? params?.name}</span>
+			<span class="truncate font-medium text-foreground">{data.fn?.name ?? data.name}</span>
 		</nav>
 		<h1 class="truncate page-title">{data.fn?.name ?? '—'}</h1>
 	</div>
@@ -76,7 +76,7 @@
 						id="payload"
 						name="payload"
 						rows={5}
-						placeholder="{}"
+						placeholder={"{}"}
 						class="resize-none font-mono text-xs"
 					/>
 				</div>

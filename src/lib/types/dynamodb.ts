@@ -4,6 +4,7 @@ export type DynamoTableSummary = {
 	itemCount?: number;
 	creationDate?: string;
 	billingMode?: string;
+	enrichmentError?: string;
 };
 
 export type DynamoKeySchema = {

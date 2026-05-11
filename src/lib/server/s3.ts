@@ -11,7 +11,7 @@ import {
 	GetBucketCorsCommand,
 	PutBucketCorsCommand
 } from '@aws-sdk/client-s3';
-import { awsConfig } from './aws';
+import { makeClient } from './aws';
 import type {
 	S3BucketSummary,
 	S3ObjectListing,
@@ -20,12 +20,9 @@ import type {
 	S3ObjectMetadata
 } from '$lib/types/s3';
 
-function client() {
-	return new S3Client(awsConfig);
-}
+const s3 = makeClient(S3Client);
 
 export async function listBuckets(): Promise<S3BucketSummary[]> {
-	const s3 = client();
 	const res = await s3.send(new ListBucketsCommand({}));
 	return (res.Buckets ?? []).map((b) => ({
 		name: b.Name!,
@@ -34,17 +31,14 @@ export async function listBuckets(): Promise<S3BucketSummary[]> {
 }
 
 export async function createBucket(name: string): Promise<void> {
-	const s3 = client();
 	await s3.send(new CreateBucketCommand({ Bucket: name }));
 }
 
 export async function deleteBucket(name: string): Promise<void> {
-	const s3 = client();
 	await s3.send(new DeleteBucketCommand({ Bucket: name }));
 }
 
 export async function listObjects(bucket: string, prefix = ''): Promise<S3ObjectListing> {
-	const s3 = client();
 	const folders: S3ObjectSummary[] = [];
 	const files: S3ObjectSummary[] = [];
 	let continuationToken: string | undefined;
@@ -69,7 +63,7 @@ export async function listObjects(bucket: string, prefix = ''): Promise<S3Object
 		}
 
 		for (const obj of res.Contents ?? []) {
-			if (obj.Key === prefix) continue; // skip the prefix itself
+			if (obj.Key === prefix) continue;
 			files.push({
 				key: obj.Key!,
 				name: obj.Key!.slice(prefix.length),
@@ -91,7 +85,6 @@ export async function uploadObject(
 	body: Buffer | Uint8Array,
 	contentType?: string
 ): Promise<void> {
-	const s3 = client();
 	await s3.send(
 		new PutObjectCommand({
 			Bucket: bucket,
@@ -103,7 +96,6 @@ export async function uploadObject(
 }
 
 export async function getObject(bucket: string, key: string): Promise<S3DownloadedObject> {
-	const s3 = client();
 	const res = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
 	const body = await res.Body!.transformToByteArray();
 	return {
@@ -114,12 +106,10 @@ export async function getObject(bucket: string, key: string): Promise<S3Download
 }
 
 export async function deleteObject(bucket: string, key: string): Promise<void> {
-	const s3 = client();
 	await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
 
 export async function getBucketCors(bucket: string): Promise<boolean> {
-	const s3 = client();
 	try {
 		await s3.send(new GetBucketCorsCommand({ Bucket: bucket }));
 		return true;
@@ -129,7 +119,6 @@ export async function getBucketCors(bucket: string): Promise<boolean> {
 }
 
 export async function putBucketCorsAllowAll(bucket: string): Promise<void> {
-	const s3 = client();
 	await s3.send(
 		new PutBucketCorsCommand({
 			Bucket: bucket,
@@ -149,7 +138,6 @@ export async function putBucketCorsAllowAll(bucket: string): Promise<void> {
 }
 
 export async function headObject(bucket: string, key: string): Promise<S3ObjectMetadata> {
-	const s3 = client();
 	const res = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
 	return {
 		key,

@@ -5,12 +5,10 @@ import {
 	InvokeCommand,
 	type FunctionConfiguration
 } from '@aws-sdk/client-lambda';
-import { awsConfig } from './aws';
+import { makeClient, paginateAll } from './aws';
 import type { LambdaFunctionSummary, LambdaFunctionDetail, LambdaInvokeResult } from '$lib/types/lambda';
 
-function client() {
-	return new LambdaClient(awsConfig);
-}
+const lambda = makeClient(LambdaClient);
 
 function mapSummary(fn: FunctionConfiguration): LambdaFunctionSummary {
 	return {
@@ -27,21 +25,16 @@ function mapSummary(fn: FunctionConfiguration): LambdaFunctionSummary {
 }
 
 export async function listFunctions(): Promise<LambdaFunctionSummary[]> {
-	const lambda = client();
-	const functions: FunctionConfiguration[] = [];
-	let marker: string | undefined;
-
-	do {
-		const res = await lambda.send(new ListFunctionsCommand({ Marker: marker }));
-		if (res.Functions) functions.push(...res.Functions);
-		marker = res.NextMarker;
-	} while (marker);
-
+	const functions = await paginateAll((token) =>
+		lambda.send(new ListFunctionsCommand({ Marker: token })).then((res) => ({
+			items: res.Functions ?? [],
+			nextToken: res.NextMarker
+		}))
+	);
 	return functions.map(mapSummary);
 }
 
 export async function getFunction(name: string): Promise<LambdaFunctionDetail> {
-	const lambda = client();
 	const res = await lambda.send(new GetFunctionCommand({ FunctionName: name }));
 	const cfg = res.Configuration!;
 	return {
@@ -54,7 +47,6 @@ export async function getFunction(name: string): Promise<LambdaFunctionDetail> {
 }
 
 export async function invokeFunction(name: string, payload: string): Promise<LambdaInvokeResult> {
-	const lambda = client();
 	const res = await lambda.send(
 		new InvokeCommand({
 			FunctionName: name,

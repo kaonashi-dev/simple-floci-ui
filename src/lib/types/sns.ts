@@ -2,6 +2,7 @@ export type SnsTopicSummary = {
 	arn: string;
 	name: string;
 	subscriptionCount?: number;
+	enrichmentError?: string;
 };
 
 export type SnsSubscription = {

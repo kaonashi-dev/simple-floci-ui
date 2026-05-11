@@ -3,6 +3,7 @@ export type SqsQueueSummary = {
 	url: string;
 	approximateNumberOfMessages?: number;
 	approximateNumberOfMessagesNotVisible?: number;
+	enrichmentError?: string;
 };
 
 export type SqsMessage = {

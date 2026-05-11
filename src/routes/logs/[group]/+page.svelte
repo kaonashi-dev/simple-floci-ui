@@ -44,7 +44,7 @@
 	<form method="POST" action="?/filter" use:enhance class="console-panel flex gap-2 p-3 items-end">
 		<div class="flex-1 space-y-1.5">
 			<label for="filter-pattern" class="text-xs text-muted-foreground">Filter pattern</label>
-			<Input id="filter-pattern" name="pattern" placeholder='ERROR or { $.level = "error" }' class="h-8 text-sm font-mono" />
+			<Input id="filter-pattern" name="pattern" placeholder={"ERROR or { $.level = \"error\" }"} class="h-8 text-sm font-mono" />
 		</div>
 		<Button type="submit" size="sm">Search</Button>
 	</form>

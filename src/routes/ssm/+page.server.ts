@@ -1,13 +1,10 @@
 import { listParameters, putParameter, deleteParameter } from '$lib/server/ssm';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
 
 export async function load() {
-	try {
-		const parameters = await listParameters();
-		return { parameters, error: null };
-	} catch (e) {
-		return { parameters: [], error: String(e) };
-	}
+	const { data: parameters, error } = await safeLoad(listParameters, []);
+	return { parameters, error };
 }
 
 export const actions = {

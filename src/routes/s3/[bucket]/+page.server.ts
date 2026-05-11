@@ -1,25 +1,18 @@
 import { listObjects, uploadObject, deleteObject, getBucketCors, putBucketCorsAllowAll } from '$lib/server/s3';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
 
 export async function load({ params, url }) {
 	const bucket = decodeURIComponent(params.bucket);
 	const prefix = url.searchParams.get('prefix') ?? '';
-
-	try {
-		const [listing, corsConfigured] = await Promise.all([
-			listObjects(bucket, prefix),
-			getBucketCors(bucket)
-		]);
-		return { listing, bucket, prefix, corsConfigured, error: null };
-	} catch (e) {
-		return {
-			listing: { bucket, prefix, folders: [], files: [] },
-			bucket,
-			prefix,
-			corsConfigured: false,
-			error: String(e)
-		};
-	}
+	const { data, error } = await safeLoad(
+		() =>
+			Promise.all([listObjects(bucket, prefix), getBucketCors(bucket)]).then(
+				([listing, corsConfigured]) => ({ listing, corsConfigured })
+			),
+		{ listing: { bucket, prefix, folders: [], files: [] }, corsConfigured: false }
+	);
+	return { ...data, bucket, prefix, error };
 }
 
 export const actions = {

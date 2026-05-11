@@ -1,14 +1,22 @@
 import { describeTable, scanTable } from '$lib/server/dynamodb';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
+import type { DynamoTableDetail, DynamoScanResult } from '$lib/types/dynamodb';
 
 export async function load({ params }) {
 	const name = decodeURIComponent(params.table);
-	try {
-		const [detail, scan] = await Promise.all([describeTable(name), scanTable(name, 50)]);
-		return { name, detail, scan, error: null };
-	} catch (e) {
-		return { name, detail: null, scan: null, error: String(e) };
-	}
+	const { data, error } = await safeLoad(
+		() =>
+			Promise.all([describeTable(name), scanTable(name, 50)]).then(([detail, scan]) => ({
+				detail,
+				scan
+			})),
+		{
+			detail: null as DynamoTableDetail | null,
+			scan: null as DynamoScanResult | null
+		}
+	);
+	return { name, ...data, error };
 }
 
 export const actions = {

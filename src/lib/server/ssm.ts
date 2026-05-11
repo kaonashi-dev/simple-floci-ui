@@ -5,22 +5,18 @@ import {
 	PutParameterCommand,
 	DeleteParameterCommand
 } from '@aws-sdk/client-ssm';
-import { awsConfig } from './aws';
+import { makeClient, paginateAll } from './aws';
 import type { SsmParameterSummary, SsmParameterDetail } from '$lib/types/ssm';
 
-function client() {
-	return new SSMClient(awsConfig);
-}
+const ssm = makeClient(SSMClient);
 
 export async function listParameters(): Promise<SsmParameterSummary[]> {
-	const ssm = client();
-	const params = [];
-	let nextToken: string | undefined;
-	do {
-		const res = await ssm.send(new DescribeParametersCommand({ NextToken: nextToken }));
-		if (res.Parameters) params.push(...res.Parameters);
-		nextToken = res.NextToken;
-	} while (nextToken);
+	const params = await paginateAll((token) =>
+		ssm.send(new DescribeParametersCommand({ NextToken: token })).then((res) => ({
+			items: res.Parameters ?? [],
+			nextToken: res.NextToken
+		}))
+	);
 	return params.map((p) => ({
 		name: p.Name!,
 		type: p.Type!,
@@ -31,7 +27,6 @@ export async function listParameters(): Promise<SsmParameterSummary[]> {
 }
 
 export async function getParameter(name: string): Promise<SsmParameterDetail> {
-	const ssm = client();
 	const res = await ssm.send(new GetParameterCommand({ Name: name, WithDecryption: true }));
 	const p = res.Parameter!;
 	return {
@@ -45,7 +40,6 @@ export async function getParameter(name: string): Promise<SsmParameterDetail> {
 }
 
 export async function putParameter(name: string, value: string, type: string, overwrite = true): Promise<void> {
-	const ssm = client();
 	await ssm.send(
 		new PutParameterCommand({
 			Name: name,
@@ -57,6 +51,5 @@ export async function putParameter(name: string, value: string, type: string, ov
 }
 
 export async function deleteParameter(name: string): Promise<void> {
-	const ssm = client();
 	await ssm.send(new DeleteParameterCommand({ Name: name }));
 }

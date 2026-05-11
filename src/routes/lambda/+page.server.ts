@@ -1,10 +1,7 @@
 import { listFunctions } from '$lib/server/lambda';
+import { safeLoad } from '$lib/server/load';
 
 export async function load() {
-	try {
-		const functions = await listFunctions();
-		return { functions, error: null };
-	} catch (e) {
-		return { functions: [], error: String(e) };
-	}
+	const { data: functions, error } = await safeLoad(listFunctions, []);
+	return { functions, error };
 }

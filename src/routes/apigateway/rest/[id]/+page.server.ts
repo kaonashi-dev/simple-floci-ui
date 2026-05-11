@@ -1,14 +1,14 @@
 import { getRestApiResources, getRestApiStages } from '$lib/server/apigateway';
+import { safeLoad } from '$lib/server/load';
 
 export async function load({ params }) {
-  const id = decodeURIComponent(params.id);
-  try {
-    const [resources, stages] = await Promise.all([
-      getRestApiResources(id),
-      getRestApiStages(id)
-    ]);
-    return { id, resources, stages, error: null };
-  } catch (e) {
-    return { id, resources: [], stages: [], error: String(e) };
-  }
+	const id = decodeURIComponent(params.id);
+	const { data, error } = await safeLoad(
+		() =>
+			Promise.all([getRestApiResources(id), getRestApiStages(id)]).then(
+				([resources, stages]) => ({ resources, stages })
+			),
+		{ resources: [], stages: [] }
+	);
+	return { id, ...data, error };
 }

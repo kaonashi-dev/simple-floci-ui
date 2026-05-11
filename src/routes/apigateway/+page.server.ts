@@ -1,10 +1,14 @@
 import { listRestApis, listHttpApis } from '$lib/server/apigateway';
+import { safeLoad } from '$lib/server/load';
 
 export async function load() {
-  try {
-    const [restApis, httpApis] = await Promise.all([listRestApis(), listHttpApis()]);
-    return { restApis, httpApis, error: null };
-  } catch (e) {
-    return { restApis: [], httpApis: [], error: String(e) };
-  }
+	const { data, error } = await safeLoad(
+		() =>
+			Promise.all([listRestApis(), listHttpApis()]).then(([restApis, httpApis]) => ({
+				restApis,
+				httpApis
+			})),
+		{ restApis: [], httpApis: [] }
+	);
+	return { ...data, error };
 }

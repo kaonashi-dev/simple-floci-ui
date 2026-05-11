@@ -1,11 +1,11 @@
 import { SQSClient, ListQueuesCommand } from '@aws-sdk/client-sqs';
-import { awsConfig } from './aws';
+import { makeClient, awsConfig } from './aws';
 import type { ConnectionStatus } from '$lib/types/common';
 
 export async function checkConnection(): Promise<ConnectionStatus> {
 	const endpoint = awsConfig.endpoint;
 	try {
-		const client = new SQSClient(awsConfig);
+		const client = makeClient(SQSClient);
 		await client.send(new ListQueuesCommand({ MaxResults: 1 }));
 		return { ok: true, endpoint };
 	} catch (e) {

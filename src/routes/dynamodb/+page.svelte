@@ -59,7 +59,9 @@
 								</a>
 							</td>
 							<td class="px-4 py-3">
-								{#if table.status}
+								{#if table.enrichmentError}
+									<span title={table.enrichmentError} class="console-tag border-amber-300/30 text-amber-600 bg-amber-50/50 dark:bg-amber-950/20">partial</span>
+								{:else if table.status}
 									<span class="console-tag {statusClass(table.status)}">{table.status}</span>
 								{:else}
 									<span class="text-xs text-muted-foreground/40">—</span>

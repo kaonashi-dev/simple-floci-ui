@@ -1,14 +1,15 @@
 import { getParameter, putParameter } from '$lib/server/ssm';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
+import type { SsmParameterDetail } from '$lib/types/ssm';
 
 export async function load({ params }) {
 	const name = decodeURIComponent(params.name);
-	try {
-		const parameter = await getParameter(name);
-		return { parameter, error: null };
-	} catch (e) {
-		return { parameter: null, error: String(e) };
-	}
+	const { data: parameter, error } = await safeLoad(
+		() => getParameter(name),
+		null as SsmParameterDetail | null
+	);
+	return { parameter, error };
 }
 
 export const actions = {

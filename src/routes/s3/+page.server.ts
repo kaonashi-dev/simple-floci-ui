@@ -1,13 +1,10 @@
 import { listBuckets, createBucket, deleteBucket } from '$lib/server/s3';
+import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
 
 export async function load() {
-	try {
-		const buckets = await listBuckets();
-		return { buckets, error: null };
-	} catch (e) {
-		return { buckets: [], error: String(e) };
-	}
+	const { data: buckets, error } = await safeLoad(listBuckets, []);
+	return { buckets, error };
 }
 
 export const actions = {
