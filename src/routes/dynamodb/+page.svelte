@@ -4,11 +4,17 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
-	import CopyButton from '$lib/components/CopyButton.svelte';
+	import ListToolbar from '$lib/components/ListToolbar.svelte';
+	import { toastingEnhance } from '$lib/utils/formEnhance';
 	import { formatDate } from '$lib/utils/formatDate';
 
-	let { data, form } = $props();
+	let { data } = $props();
 	let confirmDelete: string | null = $state(null);
+	let search = $state('');
+
+	const filtered = $derived(
+		data.tables.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()))
+	);
 
 	function statusClass(status?: string) {
 		if (status === 'ACTIVE') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
@@ -23,7 +29,7 @@
 		<div>
 			<p class="console-subtle-label">Database</p>
 			<h1 class="mt-1.5 page-title">DynamoDB Tables</h1>
-			<p class="mt-1 page-subtitle">{data.tables.length} table{data.tables.length !== 1 ? 's' : ''}</p>
+			<p class="mt-1 page-subtitle">Browse tables and scan items.</p>
 		</div>
 	</div>
 
@@ -31,9 +37,7 @@
 		<ErrorPanel message="Could not load tables" hint={data.error} />
 	{/if}
 
-	{#if form?.error}
-		<ErrorPanel message={form.error} />
-	{/if}
+	<ListToolbar bind:search placeholder="Filter tables…" total={data.tables.length} shown={filtered.length} unit="table" />
 
 	{#if data.tables.length === 0 && !data.error}
 		<EmptyState title="No tables" description="No DynamoDB tables found in this region." />
@@ -51,7 +55,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each data.tables as table}
+					{#each filtered as table}
 						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
 							<td class="px-4 py-3">
 								<a href="/dynamodb/{encodeURIComponent(table.name)}" class="font-medium text-foreground hover:text-primary transition-colors">
@@ -93,6 +97,13 @@
 							</td>
 						</tr>
 					{/each}
+					{#if filtered.length === 0 && data.tables.length > 0}
+						<tr>
+							<td colspan="6" class="px-4 py-8 text-center text-sm text-muted-foreground/60">
+								No tables match "{search}"
+							</td>
+						</tr>
+					{/if}
 				</tbody>
 			</table>
 		</div>
@@ -110,7 +121,14 @@
 		</Dialog.Header>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (confirmDelete = null)}>Cancel</Button>
-			<form method="POST" action="?/deleteTable" use:enhance={() => () => { confirmDelete = null; }}>
+			<form
+				method="POST"
+				action="?/deleteTable"
+				use:enhance={toastingEnhance({
+					successMessage: 'Table deleted',
+					closeOnSuccess: () => (confirmDelete = null)
+				})}
+			>
 				<input type="hidden" name="name" value={confirmDelete} />
 				<Button type="submit" variant="destructive">Delete Table</Button>
 			</form>

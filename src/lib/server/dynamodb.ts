@@ -71,18 +71,37 @@ export async function describeTable(name: string): Promise<DynamoTableDetail> {
 	};
 }
 
-export async function scanTable(name: string, limit = 50, lastKey?: Record<string, unknown>): Promise<DynamoScanResult> {
+export type ScanOptions = {
+	limit?: number;
+	indexName?: string;
+	filter?: { attribute: string; value: string };
+	lastKey?: Record<string, unknown>;
+};
+
+export async function scanTable(name: string, opts: ScanOptions = {}): Promise<DynamoScanResult> {
+	const filter = opts.filter;
+	const filterArgs = filter && filter.attribute && filter.value
+		? {
+				FilterExpression: 'contains(#a, :v)',
+				ExpressionAttributeNames: { '#a': filter.attribute },
+				ExpressionAttributeValues: { ':v': filter.value }
+			}
+		: {};
+
 	const res = await doc.send(
 		new ScanCommand({
 			TableName: name,
-			Limit: limit,
-			ExclusiveStartKey: lastKey as Record<string, never> | undefined
+			Limit: opts.limit ?? 50,
+			IndexName: opts.indexName,
+			ExclusiveStartKey: opts.lastKey as Record<string, never> | undefined,
+			...filterArgs
 		})
 	);
 	return {
 		items: (res.Items ?? []) as Record<string, unknown>[],
 		lastEvaluatedKey: res.LastEvaluatedKey as Record<string, unknown> | undefined,
-		count: res.Count ?? 0
+		count: res.Count ?? 0,
+		scannedCount: res.ScannedCount ?? 0
 	};
 }
 
