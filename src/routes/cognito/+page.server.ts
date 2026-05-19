@@ -12,22 +12,24 @@ export const actions = {
 	createPool: async ({ request }) => {
 		const data = await request.formData();
 		const name = (data.get('name') as string)?.trim();
-		if (!name) return fail(400, { error: 'Pool name is required' });
+		if (!name) return fail(400, { actionError: 'Pool name is required' });
 		try {
 			await createUserPool(name);
+			return { success: `User pool "${name}" created` };
 		} catch (e) {
-			return fail(500, { error: String(e) });
+			return fail(500, { actionError: String(e) });
 		}
 	},
 
 	deletePool: async ({ request }) => {
 		const data = await request.formData();
 		const id = data.get('id') as string;
-		if (!id) return fail(400, { error: 'Pool ID is required' });
+		if (!id) return fail(400, { actionError: 'Pool ID is required' });
 		try {
 			await deleteUserPool(id);
+			return { success: 'User pool deleted' };
 		} catch (e) {
-			return fail(500, { error: String(e) });
+			return fail(500, { actionError: String(e) });
 		}
 	}
 };

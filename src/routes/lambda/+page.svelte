@@ -1,10 +1,26 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import ListToolbar from '$lib/components/ListToolbar.svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	let { data } = $props();
+
+	let search = $state('');
+	let runtimeFilter = $state<string>('all');
+
+	const runtimes = $derived(
+		Array.from(new Set(data.functions.map((f) => f.runtime).filter(Boolean) as string[])).sort()
+	);
+
+	const filtered = $derived(
+		data.functions.filter((f) => {
+			const matchesSearch = f.name.toLowerCase().includes(search.toLowerCase());
+			const matchesRuntime = runtimeFilter === 'all' || f.runtime === runtimeFilter;
+			return matchesSearch && matchesRuntime;
+		})
+	);
 
 	function stateClass(state?: string) {
 		if (state === 'Active') return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
@@ -18,13 +34,28 @@
 		<div>
 			<p class="console-subtle-label">Compute</p>
 			<h1 class="mt-1.5 page-title">Lambda Functions</h1>
-			<p class="mt-1 page-subtitle">{data.functions.length} function{data.functions.length !== 1 ? 's' : ''}</p>
+			<p class="mt-1 page-subtitle">List and invoke local Lambda functions.</p>
 		</div>
 	</div>
 
 	{#if data.error}
 		<ErrorPanel message="Could not load functions" hint={data.error} />
 	{/if}
+
+	<ListToolbar bind:search placeholder="Filter functions…" total={data.functions.length} shown={filtered.length} unit="function">
+		{#snippet children()}
+			<select
+				bind:value={runtimeFilter}
+				class="h-8 rounded border border-border bg-muted/30 px-2 text-xs"
+				title="Filter by runtime"
+			>
+				<option value="all">All runtimes</option>
+				{#each runtimes as r}
+					<option value={r}>{r}</option>
+				{/each}
+			</select>
+		{/snippet}
+	</ListToolbar>
 
 	{#if data.functions.length === 0 && !data.error}
 		<EmptyState title="No functions" description="Deploy a Lambda function to see it here." />
@@ -42,7 +73,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each data.functions as fn}
+					{#each filtered as fn}
 						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
 							<td class="px-4 py-3">
 								<div class="flex items-center gap-1.5">
@@ -78,6 +109,13 @@
 							</td>
 						</tr>
 					{/each}
+					{#if filtered.length === 0 && data.functions.length > 0}
+						<tr>
+							<td colspan="6" class="px-4 py-8 text-center text-sm text-muted-foreground/60">
+								No functions match the current filter.
+							</td>
+						</tr>
+					{/if}
 				</tbody>
 			</table>
 		</div>

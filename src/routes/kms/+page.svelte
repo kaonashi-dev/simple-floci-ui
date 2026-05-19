@@ -7,14 +7,27 @@
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import ListToolbar from '$lib/components/ListToolbar.svelte';
+	import { toastingEnhance } from '$lib/utils/formEnhance';
 	import { formatDate } from '$lib/utils/formatDate';
 	import { cn } from '$lib/utils';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let showCreate = $state(false);
 	let confirmSchedule: { keyId: string; aliases: string[] } | null = $state(null);
 	let scheduleDays = $state(7);
+	let search = $state('');
+	let stateFilter = $state<'all' | 'Enabled' | 'Disabled' | 'PendingDeletion'>('all');
+
+	const filtered = $derived(
+		data.keys.filter((k) => {
+			const hay = `${k.keyId} ${k.description ?? ''} ${k.aliases.join(' ')}`.toLowerCase();
+			const matchesSearch = hay.includes(search.toLowerCase());
+			const matchesState = stateFilter === 'all' || k.keyState === stateFilter;
+			return matchesSearch && matchesState;
+		})
+	);
 
 	function stateClass(state?: string) {
 		if (state === 'Enabled') return 'text-emerald-600 border-emerald-500/30 bg-emerald-500/10 dark:text-emerald-400';
@@ -29,7 +42,7 @@
 		<div>
 			<p class="console-subtle-label">Encryption</p>
 			<h1 class="mt-1.5 page-title">KMS Keys</h1>
-			<p class="mt-1 page-subtitle">{data.keys.length} key{data.keys.length !== 1 ? 's' : ''}</p>
+			<p class="mt-1 page-subtitle">Review keys, aliases, and rotation settings.</p>
 		</div>
 		<div class="flex items-center gap-2">
 			<Button size="sm" onclick={() => (showCreate = !showCreate)}>
@@ -45,20 +58,28 @@
 		<ErrorPanel message="Could not load keys" hint={data.error} />
 	{/if}
 
-	{#if form?.error}
-		<ErrorPanel message={form.error} />
-	{/if}
-
 	{#if showCreate}
 		<form
 			method="POST"
 			action="?/createKey"
-			use:enhance={() => () => { showCreate = false; }}
-			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
+			use:enhance={toastingEnhance({
+				successMessage: 'Key created',
+				closeOnSuccess: () => (showCreate = false)
+			})}
+			class="console-panel flex flex-col gap-3 p-4"
 		>
-			<div class="flex-1 space-y-1.5">
-				<Label for="key-desc" class="text-xs">Description (optional)</Label>
-				<Input id="key-desc" name="description" placeholder="My encryption key" class="h-8 text-sm" />
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+				<div class="space-y-1.5 sm:col-span-2">
+					<Label for="key-desc" class="text-xs">Description (optional)</Label>
+					<Input id="key-desc" name="description" placeholder="My encryption key" class="h-8 text-sm" />
+				</div>
+				<div class="space-y-1.5">
+					<Label for="key-usage" class="text-xs">Key usage</Label>
+					<select id="key-usage" name="keyUsage" class="h-8 w-full rounded border border-input bg-background px-2 text-sm">
+						<option value="ENCRYPT_DECRYPT">Encrypt/Decrypt</option>
+						<option value="SIGN_VERIFY">Sign/Verify</option>
+					</select>
+				</div>
 			</div>
 			<div class="flex gap-2">
 				<Button type="submit" size="sm">Create</Button>
@@ -66,6 +87,17 @@
 			</div>
 		</form>
 	{/if}
+
+	<ListToolbar bind:search placeholder="Filter keys, aliases, descriptions…" total={data.keys.length} shown={filtered.length} unit="key">
+		{#snippet children()}
+			<select bind:value={stateFilter} class="h-8 rounded border border-border bg-muted/30 px-2 text-xs">
+				<option value="all">All states</option>
+				<option value="Enabled">Enabled</option>
+				<option value="Disabled">Disabled</option>
+				<option value="PendingDeletion">Pending deletion</option>
+			</select>
+		{/snippet}
+	</ListToolbar>
 
 	{#if data.keys.length === 0 && !data.error}
 		<EmptyState title="No keys" description="Create a symmetric key to get started." />
@@ -83,7 +115,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each data.keys as key}
+					{#each filtered as key}
 						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
 							<td class="px-4 py-3">
 								<div class="space-y-1">
@@ -135,12 +167,12 @@
 										Open
 									</Button>
 									{#if key.keyState === 'Enabled'}
-										<form method="POST" action="?/disableKey" use:enhance>
+										<form method="POST" action="?/disableKey" use:enhance={toastingEnhance({ successMessage: 'Key disabled' })}>
 											<input type="hidden" name="keyId" value={key.keyId} />
 											<Button variant="ghost" size="sm" class="h-7 px-2 text-xs" type="submit">Disable</Button>
 										</form>
 									{:else if key.keyState === 'Disabled'}
-										<form method="POST" action="?/enableKey" use:enhance>
+										<form method="POST" action="?/enableKey" use:enhance={toastingEnhance({ successMessage: 'Key enabled' })}>
 											<input type="hidden" name="keyId" value={key.keyId} />
 											<Button variant="ghost" size="sm" class="h-7 px-2 text-xs" type="submit">Enable</Button>
 										</form>
@@ -159,6 +191,13 @@
 							</td>
 						</tr>
 					{/each}
+					{#if filtered.length === 0 && data.keys.length > 0}
+						<tr>
+							<td colspan="6" class="px-4 py-8 text-center text-sm text-muted-foreground/60">
+								No keys match the current filter.
+							</td>
+						</tr>
+					{/if}
 				</tbody>
 			</table>
 		</div>
@@ -190,7 +229,14 @@
 		</div>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (confirmSchedule = null)}>Cancel</Button>
-			<form method="POST" action="?/scheduleDelete" use:enhance={() => () => { confirmSchedule = null; }}>
+			<form
+				method="POST"
+				action="?/scheduleDelete"
+				use:enhance={toastingEnhance({
+					successMessage: 'Deletion scheduled',
+					closeOnSuccess: () => (confirmSchedule = null)
+				})}
+			>
 				<input type="hidden" name="keyId" value={confirmSchedule?.keyId} />
 				<input type="hidden" name="days" value={scheduleDays} />
 				<Button type="submit" variant="destructive">Schedule Deletion</Button>

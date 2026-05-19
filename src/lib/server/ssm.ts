@@ -39,12 +39,19 @@ export async function getParameter(name: string): Promise<SsmParameterDetail> {
 	};
 }
 
-export async function putParameter(name: string, value: string, type: string, overwrite = true): Promise<void> {
+export async function putParameter(
+	name: string,
+	value: string,
+	type: string,
+	overwrite = true,
+	description?: string
+): Promise<void> {
 	await ssm.send(
 		new PutParameterCommand({
 			Name: name,
 			Value: value,
 			Type: type as 'String' | 'SecureString' | 'StringList',
+			Description: description || undefined,
 			Overwrite: overwrite
 		})
 	);

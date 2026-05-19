@@ -1,4 +1,6 @@
 <script lang="ts">
+	import SearchIcon from '@lucide/svelte/icons/search';
+	import XIcon from '@lucide/svelte/icons/x';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
@@ -8,6 +10,11 @@
 
 	type Tab = 'users' | 'roles' | 'policies';
 	let activeTab: Tab = $state('users');
+	let search = $state('');
+
+	const users = $derived(data.users.filter((u) => u.username.toLowerCase().includes(search.toLowerCase())));
+	const roles = $derived(data.roles.filter((r) => `${r.roleName} ${r.description ?? ''}`.toLowerCase().includes(search.toLowerCase())));
+	const policies = $derived(data.policies.filter((p) => p.policyName.toLowerCase().includes(search.toLowerCase())));
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -15,11 +22,7 @@
 		<div>
 			<p class="console-subtle-label">Security</p>
 			<h1 class="mt-1.5 page-title">IAM</h1>
-			<p class="mt-1 page-subtitle">
-				{data.users.length} user{data.users.length !== 1 ? 's' : ''},
-				{data.roles.length} role{data.roles.length !== 1 ? 's' : ''},
-				{data.policies.length} {data.policies.length !== 1 ? 'policies' : 'policy'}
-			</p>
+			<p class="mt-1 page-subtitle">Browse users, roles, and local policies.</p>
 		</div>
 	</div>
 
@@ -50,29 +53,49 @@
 		</div>
 	{/if}
 
-	<!-- Tab bar -->
-	<div class="flex gap-1 border-b border-border">
-		{#each [
-			{ id: 'users', label: 'Users', count: data.users.length },
-			{ id: 'roles', label: 'Roles', count: data.roles.length },
-			{ id: 'policies', label: 'Policies', count: data.policies.length }
-		] as tab}
-			<button
-				type="button"
-				onclick={() => (activeTab = tab.id as Tab)}
-				class="px-3 py-2 text-sm font-medium transition-colors {activeTab === tab.id ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}"
-			>
-				{tab.label}
-				<span class="ml-1.5 font-mono text-[10px] {activeTab === tab.id ? 'text-primary' : 'text-muted-foreground'}">{tab.count}</span>
-			</button>
-		{/each}
+	<!-- Tab bar + search -->
+	<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+		<div class="flex gap-1 border-b border-border sm:border-0">
+			{#each [
+				{ id: 'users', label: 'Users', count: data.users.length },
+				{ id: 'roles', label: 'Roles', count: data.roles.length },
+				{ id: 'policies', label: 'Policies', count: data.policies.length }
+			] as tab}
+				<button
+					type="button"
+					onclick={() => (activeTab = tab.id as Tab)}
+					class="px-3 py-2 text-sm font-medium transition-colors {activeTab === tab.id ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+				>
+					{tab.label}
+					<span class="ml-1.5 font-mono text-[10px] {activeTab === tab.id ? 'text-primary' : 'text-muted-foreground'}">{tab.count}</span>
+				</button>
+			{/each}
+		</div>
+		<div class="relative">
+			<SearchIcon class="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/50" />
+			<input
+				bind:value={search}
+				placeholder="Filter {activeTab}…"
+				class="h-8 w-56 rounded border border-border bg-muted/30 pl-8 pr-7 text-sm placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/40"
+			/>
+			{#if search}
+				<button
+					type="button"
+					aria-label="Clear search"
+					class="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground/60 hover:text-foreground"
+					onclick={() => (search = '')}
+				>
+					<XIcon class="size-3.5" />
+				</button>
+			{/if}
+		</div>
 	</div>
 
 	<!-- Users tab -->
 	{#if activeTab === 'users'}
 		{#if data.users.length === 0 && !data.error}
 			<EmptyState title="No users" description="No IAM users found in this account." />
-		{:else if data.users.length > 0}
+		{:else}
 			<div class="console-table-shell overflow-x-auto">
 				<table class="w-full min-w-[700px] text-sm">
 					<thead>
@@ -84,7 +107,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each data.users as user}
+						{#each users as user}
 							<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
 								<td class="px-4 py-3">
 									<a href="/iam/users/{encodeURIComponent(user.username)}" class="font-medium text-foreground transition-colors hover:text-primary">
@@ -101,6 +124,9 @@
 								<td class="px-4 py-3 text-sm text-muted-foreground">{formatDate(user.createdDate)}</td>
 							</tr>
 						{/each}
+						{#if users.length === 0 && data.users.length > 0}
+							<tr><td colspan="4" class="px-4 py-8 text-center text-sm text-muted-foreground/60">No users match "{search}"</td></tr>
+						{/if}
 					</tbody>
 				</table>
 			</div>
@@ -111,7 +137,7 @@
 	{#if activeTab === 'roles'}
 		{#if data.roles.length === 0 && !data.error}
 			<EmptyState title="No roles" description="No IAM roles found in this account." />
-		{:else if data.roles.length > 0}
+		{:else}
 			<div class="console-table-shell overflow-x-auto">
 				<table class="w-full min-w-[700px] text-sm">
 					<thead>
@@ -124,7 +150,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each data.roles as role}
+						{#each roles as role}
 							<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
 								<td class="px-4 py-3 font-medium">{role.roleName}</td>
 								<td class="px-4 py-3">
@@ -138,6 +164,9 @@
 								<td class="px-4 py-3 text-sm text-muted-foreground">{formatDate(role.createdDate)}</td>
 							</tr>
 						{/each}
+						{#if roles.length === 0 && data.roles.length > 0}
+							<tr><td colspan="5" class="px-4 py-8 text-center text-sm text-muted-foreground/60">No roles match "{search}"</td></tr>
+						{/if}
 					</tbody>
 				</table>
 			</div>
@@ -148,7 +177,7 @@
 	{#if activeTab === 'policies'}
 		{#if data.policies.length === 0 && !data.error}
 			<EmptyState title="No local policies" description="No customer-managed IAM policies found." />
-		{:else if data.policies.length > 0}
+		{:else}
 			<div class="console-table-shell overflow-x-auto">
 				<table class="w-full min-w-[600px] text-sm">
 					<thead>
@@ -160,7 +189,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each data.policies as policy}
+						{#each policies as policy}
 							<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
 								<td class="px-4 py-3 font-medium">{policy.policyName}</td>
 								<td class="px-4 py-3">
@@ -175,6 +204,9 @@
 								</td>
 							</tr>
 						{/each}
+						{#if policies.length === 0 && data.policies.length > 0}
+							<tr><td colspan="4" class="px-4 py-8 text-center text-sm text-muted-foreground/60">No policies match "{search}"</td></tr>
+						{/if}
 					</tbody>
 				</table>
 			</div>

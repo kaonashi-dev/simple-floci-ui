@@ -13,22 +13,24 @@ export const actions = {
 		const name = (data.get('name') as string)?.trim();
 		const value = (data.get('value') as string)?.trim();
 		const description = (data.get('description') as string)?.trim();
-		if (!name) return fail(400, { error: 'Secret name is required' });
-		if (!value) return fail(400, { error: 'Secret value is required' });
+		if (!name) return fail(400, { actionError: 'Secret name is required' });
+		if (!value) return fail(400, { actionError: 'Secret value is required' });
 		try {
 			await createSecret(name, value, description);
+			return { success: `Secret "${name}" created` };
 		} catch (e) {
-			return fail(500, { error: String(e) });
+			return fail(500, { actionError: String(e) });
 		}
 	},
 	deleteSecret: async ({ request }) => {
 		const data = await request.formData();
 		const arn = data.get('arn') as string;
-		if (!arn) return fail(400, { error: 'ARN is required' });
+		if (!arn) return fail(400, { actionError: 'ARN is required' });
 		try {
 			await deleteSecret(arn);
+			return { success: 'Secret deleted' };
 		} catch (e) {
-			return fail(500, { error: String(e) });
+			return fail(500, { actionError: String(e) });
 		}
 	}
 };

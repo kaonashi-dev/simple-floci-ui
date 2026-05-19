@@ -10,23 +10,27 @@ export async function load() {
 export const actions = {
 	createTopic: async ({ request }) => {
 		const data = await request.formData();
-		const name = (data.get('name') as string)?.trim();
-		if (!name) return fail(400, { error: 'Topic name is required' });
+		let name = (data.get('name') as string)?.trim();
+		if (!name) return fail(400, { actionError: 'Topic name is required' });
+		const fifo = data.get('type') === 'fifo';
+		if (fifo && !name.endsWith('.fifo')) name = `${name}.fifo`;
 		try {
-			await createTopic(name);
+			await createTopic(name, { fifo });
+			return { success: `Topic "${name}" created` };
 		} catch (e) {
-			return fail(500, { error: String(e) });
+			return fail(500, { actionError: String(e) });
 		}
 	},
 
 	deleteTopic: async ({ request }) => {
 		const data = await request.formData();
 		const arn = data.get('arn') as string;
-		if (!arn) return fail(400, { error: 'Topic ARN is required' });
+		if (!arn) return fail(400, { actionError: 'Topic ARN is required' });
 		try {
 			await deleteTopic(arn);
+			return { success: 'Topic deleted' };
 		} catch (e) {
-			return fail(500, { error: String(e) });
+			return fail(500, { actionError: String(e) });
 		}
 	}
 };

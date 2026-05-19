@@ -7,12 +7,20 @@
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import ListToolbar from '$lib/components/ListToolbar.svelte';
+	import { toastingEnhance } from '$lib/utils/formEnhance';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let showCreate = $state(false);
+	let isFifo = $state(false);
 	let confirmDeleteArn: string | null = $state(null);
 	let confirmDeleteName: string | null = $state(null);
+	let search = $state('');
+
+	const filtered = $derived(
+		data.topics.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()))
+	);
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -20,7 +28,7 @@
 		<div>
 			<p class="console-subtle-label">Messaging</p>
 			<h1 class="mt-1.5 page-title">SNS Topics</h1>
-			<p class="mt-1 page-subtitle">{data.topics.length} topic{data.topics.length !== 1 ? 's' : ''}</p>
+			<p class="mt-1 page-subtitle">Manage topics, subscriptions, and publish messages.</p>
 		</div>
 		<div class="flex items-center gap-2">
 			<Button size="sm" onclick={() => (showCreate = !showCreate)}>
@@ -36,20 +44,32 @@
 		<ErrorPanel message="Could not load topics" hint={data.error} />
 	{/if}
 
-	{#if form?.error}
-		<ErrorPanel message={form.error} />
-	{/if}
-
 	{#if showCreate}
 		<form
 			method="POST"
 			action="?/createTopic"
-			use:enhance={() => () => { showCreate = false; }}
+			use:enhance={toastingEnhance({
+				successMessage: 'Topic created',
+				closeOnSuccess: () => { showCreate = false; isFifo = false; }
+			})}
 			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
 		>
 			<div class="flex-1 space-y-1.5">
-				<Label for="topic-name" class="text-xs">Topic name</Label>
-				<Input id="topic-name" name="name" placeholder="my-topic" required class="h-8 text-sm" />
+				<Label for="topic-name" class="text-xs">Topic name {isFifo ? '(.fifo suffix required)' : ''}</Label>
+				<Input id="topic-name" name="name" placeholder={isFifo ? 'my-topic.fifo' : 'my-topic'} required class="h-8 text-sm" />
+			</div>
+			<div class="space-y-1.5">
+				<Label class="text-xs">Type</Label>
+				<div class="flex h-8 items-center gap-3 text-xs">
+					<label class="flex items-center gap-1.5">
+						<input type="radio" name="type" value="standard" checked={!isFifo} onchange={() => (isFifo = false)} />
+						Standard
+					</label>
+					<label class="flex items-center gap-1.5">
+						<input type="radio" name="type" value="fifo" checked={isFifo} onchange={() => (isFifo = true)} />
+						FIFO
+					</label>
+				</div>
 			</div>
 			<div class="flex gap-2">
 				<Button type="submit" size="sm">Create</Button>
@@ -57,6 +77,8 @@
 			</div>
 		</form>
 	{/if}
+
+	<ListToolbar bind:search placeholder="Filter topics…" total={data.topics.length} shown={filtered.length} unit="topic" />
 
 	{#if data.topics.length === 0 && !data.error}
 		<EmptyState title="No topics" description="Create a topic to get started." />
@@ -66,18 +88,26 @@
 				<thead>
 					<tr class="border-b border-border">
 						<th class="table-th">Topic Name</th>
+						<th class="table-th w-16">Type</th>
 						<th class="table-th">ARN</th>
 						<th class="table-th-right w-32">Subscriptions</th>
 						<th class="table-th-right w-28">Actions</th>
 					</tr>
 				</thead>
 				<tbody>
-					{#each data.topics as topic}
+					{#each filtered as topic}
 						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
 							<td class="px-4 py-3">
 								<a href="/sns/{encodeURIComponent(topic.arn)}" class="font-medium text-foreground hover:text-primary transition-colors">
 									{topic.name}
 								</a>
+							</td>
+							<td class="px-4 py-3">
+								{#if topic.name.endsWith('.fifo')}
+									<span class="console-tag border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-300">FIFO</span>
+								{:else}
+									<span class="console-tag border-border bg-muted/30 text-muted-foreground">std</span>
+								{/if}
 							</td>
 							<td class="px-4 py-3">
 								<div class="flex items-center gap-1.5">
@@ -109,6 +139,13 @@
 							</td>
 						</tr>
 					{/each}
+					{#if filtered.length === 0 && data.topics.length > 0}
+						<tr>
+							<td colspan="5" class="px-4 py-8 text-center text-sm text-muted-foreground/60">
+								No topics match "{search}"
+							</td>
+						</tr>
+					{/if}
 				</tbody>
 			</table>
 		</div>
@@ -128,7 +165,14 @@
 			<Button variant="outline" onclick={() => { confirmDeleteArn = null; confirmDeleteName = null; }}>
 				Cancel
 			</Button>
-			<form method="POST" action="?/deleteTopic" use:enhance={() => () => { confirmDeleteArn = null; confirmDeleteName = null; }}>
+			<form
+				method="POST"
+				action="?/deleteTopic"
+				use:enhance={toastingEnhance({
+					successMessage: 'Topic deleted',
+					closeOnSuccess: () => { confirmDeleteArn = null; confirmDeleteName = null; }
+				})}
+			>
 				<input type="hidden" name="arn" value={confirmDeleteArn} />
 				<Button type="submit" variant="destructive">Delete Topic</Button>
 			</form>

@@ -8,13 +8,22 @@
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import ListToolbar from '$lib/components/ListToolbar.svelte';
+	import { toastingEnhance } from '$lib/utils/formEnhance';
 	import { formatDate } from '$lib/utils/formatDate';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let showCreate = $state(false);
 	let confirmDeleteArn: string | null = $state(null);
 	let confirmDeleteName: string | null = $state(null);
+	let search = $state('');
+
+	const filtered = $derived(
+		data.secrets.filter((s) =>
+			`${s.name} ${s.description ?? ''}`.toLowerCase().includes(search.toLowerCase())
+		)
+	);
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -22,7 +31,7 @@
 		<div>
 			<p class="console-subtle-label">Security</p>
 			<h1 class="mt-1.5 page-title">Secrets Manager</h1>
-			<p class="mt-1 page-subtitle">{data.secrets.length} secret{data.secrets.length !== 1 ? 's' : ''}</p>
+			<p class="mt-1 page-subtitle">View and manage application secrets.</p>
 		</div>
 		<div class="flex items-center gap-2">
 			<Button size="sm" onclick={() => (showCreate = !showCreate)}>
@@ -38,15 +47,14 @@
 		<ErrorPanel message="Could not load secrets" hint={data.error} />
 	{/if}
 
-	{#if form?.error}
-		<ErrorPanel message={form.error} />
-	{/if}
-
 	{#if showCreate}
 		<form
 			method="POST"
 			action="?/createSecret"
-			use:enhance={() => () => { showCreate = false; }}
+			use:enhance={toastingEnhance({
+				successMessage: 'Secret created',
+				closeOnSuccess: () => (showCreate = false)
+			})}
 			class="console-panel flex flex-col gap-3 p-4"
 		>
 			<h2 class="text-sm font-semibold">Create Secret</h2>
@@ -71,6 +79,8 @@
 		</form>
 	{/if}
 
+	<ListToolbar bind:search placeholder="Filter secrets…" total={data.secrets.length} shown={filtered.length} unit="secret" />
+
 	{#if data.secrets.length === 0 && !data.error}
 		<EmptyState title="No secrets" description="Create a secret to store sensitive values." />
 	{:else}
@@ -85,7 +95,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each data.secrets as secret}
+					{#each filtered as secret}
 						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
 							<td class="px-4 py-3">
 								<div class="flex items-center gap-1.5">
@@ -114,6 +124,13 @@
 							</td>
 						</tr>
 					{/each}
+					{#if filtered.length === 0 && data.secrets.length > 0}
+						<tr>
+							<td colspan="4" class="px-4 py-8 text-center text-sm text-muted-foreground/60">
+								No secrets match "{search}"
+							</td>
+						</tr>
+					{/if}
 				</tbody>
 			</table>
 		</div>
@@ -130,7 +147,14 @@
 		</Dialog.Header>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => { confirmDeleteArn = null; confirmDeleteName = null; }}>Cancel</Button>
-			<form method="POST" action="?/deleteSecret" use:enhance={() => () => { confirmDeleteArn = null; confirmDeleteName = null; }}>
+			<form
+				method="POST"
+				action="?/deleteSecret"
+				use:enhance={toastingEnhance({
+					successMessage: 'Secret deleted',
+					closeOnSuccess: () => { confirmDeleteArn = null; confirmDeleteName = null; }
+				})}
+			>
 				<input type="hidden" name="arn" value={confirmDeleteArn} />
 				<Button type="submit" variant="destructive">Delete Secret</Button>
 			</form>
