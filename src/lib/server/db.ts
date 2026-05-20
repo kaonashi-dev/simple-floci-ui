@@ -1,10 +1,10 @@
-import Database from 'better-sqlite3';
+import { Database } from 'bun:sqlite';
 import { join } from 'node:path';
 
 export const DB_PATH = process.env.FLOCI_DB_PATH ?? join(process.cwd(), 'floci.db');
 
-const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
+const db = new Database(DB_PATH, { create: true });
+db.exec('PRAGMA journal_mode = WAL');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS sqs_message_events (
