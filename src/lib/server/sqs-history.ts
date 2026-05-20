@@ -1,11 +1,12 @@
-import { insertEvent, queryEvents, statsForQueue, resetStore, storeInfo } from './db';
-import type { SqsHistoryEvent, SqsQueueStats } from '$lib/types/sqs-history';
+import { storage } from './storage';
+import type { QueueStats, StoreInfo } from './storage';
+import type { SqsHistoryEvent } from '$lib/types/sqs-history';
 import type { SqsMessage } from '$lib/types/sqs';
 
 const BODY_PREVIEW_LEN = 200;
 
 export function recordSent(queueName: string, messageId: string | undefined, body: string): void {
-	insertEvent({
+	storage.insertEvent({
 		queueName,
 		messageId: messageId ?? null,
 		eventType: 'sent',
@@ -21,7 +22,7 @@ export function recordReceived(queueName: string, messages: SqsMessage[]): void 
 	for (const msg of messages) {
 		const sentTs = Number(msg.attributes?.SentTimestamp);
 		const validSentTs = Number.isFinite(sentTs) && sentTs > 0;
-		insertEvent({
+		storage.insertEvent({
 			queueName,
 			messageId: msg.messageId ?? null,
 			eventType: 'received',
@@ -34,7 +35,7 @@ export function recordReceived(queueName: string, messages: SqsMessage[]): void 
 }
 
 export function recordDeleted(queueName: string): void {
-	insertEvent({
+	storage.insertEvent({
 		queueName,
 		messageId: null,
 		eventType: 'deleted',
@@ -46,7 +47,7 @@ export function recordDeleted(queueName: string): void {
 }
 
 export function getQueueHistory(queueName: string, limit = 200): SqsHistoryEvent[] {
-	return queryEvents(queueName, limit).map((e) => ({
+	return storage.queryEvents(queueName, limit).map((e) => ({
 		id: e.id,
 		queueName: e.queueName,
 		messageId: e.messageId,
@@ -58,14 +59,14 @@ export function getQueueHistory(queueName: string, limit = 200): SqsHistoryEvent
 	}));
 }
 
-export function getQueueStats(queueName: string): SqsQueueStats {
-	return statsForQueue(queueName);
+export function getQueueStats(queueName: string): QueueStats {
+	return storage.statsForQueue(queueName);
 }
 
 export function resetDb(): void {
-	resetStore();
+	storage.reset();
 }
 
-export function getDbStats(): { path: string; sizeBytes: number; totalEvents: number } {
-	return storeInfo();
+export function getDbStats(): StoreInfo {
+	return storage.info();
 }
