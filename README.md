@@ -66,3 +66,7 @@ bun run build      # production build
 bun run preview    # preview production build
 bun run check      # type-check with svelte-check
 ```
+
+
+<img width="1398" height="861" alt="image" src="https://github.com/user-attachments/assets/544ce3aa-1ea4-4678-95a9-0875e41b0c94" />
+
