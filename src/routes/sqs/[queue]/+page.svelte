@@ -1,12 +1,17 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import PlusIcon from '@lucide/svelte/icons/plus';
+	import TrashIcon from '@lucide/svelte/icons/trash-2';
 	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import { Label } from '$lib/components/ui/label';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import JsonViewer from '$lib/components/JsonViewer.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import { toastingEnhance } from '$lib/utils/formEnhance';
 	import type { SqsMessage } from '$lib/types/sqs';
 
 	let { data, form } = $props();
@@ -14,6 +19,13 @@
 	let messages: SqsMessage[] = $state([]);
 	let showPurgeConfirm = $state(false);
 	let expandedMessage: string | null = $state(null);
+	let showAllAttrs = $state(false);
+	let showSendOptions = $state(false);
+	let msgAttrs = $state<{ name: string; value: string; type: 'String' | 'Number' | 'Binary' }[]>([]);
+
+	let receiveMax = $state(10);
+	let receiveVisibility = $state(30);
+	let receiveWait = $state(1);
 
 	$effect(() => {
 		if (form?.action === 'receive' && form.messages) {
@@ -21,11 +33,22 @@
 		}
 	});
 
-	const attrKeys = $derived(Object.entries(data.attributes ?? {}).sort(([a], [b]) => a.localeCompare(b)));
+	const attrEntries = $derived(
+		Object.entries(data.attributes ?? {}).sort(([a], [b]) => a.localeCompare(b))
+	);
+	const visibleAttrs = $derived(showAllAttrs ? attrEntries : attrEntries.slice(0, 8));
+
+	function fmtAttr(key: string, value: string) {
+		const epochKeys = new Set(['CreatedTimestamp', 'LastModifiedTimestamp']);
+		if (epochKeys.has(key)) {
+			const n = Number(value);
+			if (Number.isFinite(n)) return new Date(n * 1000).toLocaleString();
+		}
+		return value;
+	}
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-6 animate-fade-in-up">
-	<!-- Header -->
 	<div>
 		<nav class="mb-1.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
 			<a href="/sqs" class="rounded px-1.5 py-1 transition-colors hover:bg-muted hover:text-foreground">SQS</a>
@@ -34,7 +57,12 @@
 			</svg>
 			<span class="truncate font-medium text-foreground">{data.name}</span>
 		</nav>
-		<h1 class="truncate page-title">{data.name}</h1>
+		<div class="flex items-center gap-2">
+			<h1 class="truncate page-title">{data.name}</h1>
+			{#if data.isFifo}
+				<span class="console-tag border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-300">FIFO</span>
+			{/if}
+		</div>
 	</div>
 
 	{#if data.error}
@@ -43,15 +71,6 @@
 
 	{#if form?.actionError}
 		<ErrorPanel message={form.actionError} />
-	{/if}
-
-	{#if form?.success}
-		<div class="flex items-center gap-2 rounded border border-emerald-500/20 bg-emerald-500/8 px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-400">
-			<svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-			</svg>
-			{form.success}
-		</div>
 	{/if}
 
 	{#if data.url}
@@ -65,30 +84,115 @@
 	<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 		<div class="console-panel space-y-3 p-4">
 			<h2 class="text-sm font-semibold">Send Message</h2>
-			<form method="POST" action="?/sendMessage" use:enhance class="space-y-2.5">
+			<form
+				method="POST"
+				action="?/sendMessage"
+				use:enhance={toastingEnhance()}
+				class="space-y-2.5"
+			>
 				<div class="space-y-1.5">
 					<Label for="msg-body" class="text-xs text-muted-foreground">Message body</Label>
 					<Textarea
 						id="msg-body"
 						name="body"
 						rows={4}
-						placeholder="JSON message body"
+						placeholder={data.isFifo ? '{"order_id": 123}' : 'JSON message body'}
 						class="resize-none font-mono text-xs"
 					/>
 				</div>
+
+				<button
+					type="button"
+					class="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+					onclick={() => (showSendOptions = !showSendOptions)}
+				>
+					<ChevronDownIcon class="size-3 transition-transform {showSendOptions ? 'rotate-180' : ''}" />
+					Advanced options
+				</button>
+
+				{#if showSendOptions}
+					<div class="space-y-2.5 rounded border border-border/60 bg-muted/20 p-3">
+						{#if data.isFifo}
+							<div class="grid grid-cols-2 gap-2">
+								<div class="space-y-1">
+									<Label for="group-id" class="text-xs">Group ID</Label>
+									<Input id="group-id" name="messageGroupId" placeholder="default" class="h-7 text-xs font-mono" />
+								</div>
+								<div class="space-y-1">
+									<Label for="dedup-id" class="text-xs">Dedup ID</Label>
+									<Input id="dedup-id" name="messageDeduplicationId" placeholder="(content-based)" class="h-7 text-xs font-mono" />
+								</div>
+							</div>
+						{:else}
+							<div class="space-y-1">
+								<Label for="send-delay" class="text-xs">Delivery delay (seconds, 0–900)</Label>
+								<Input id="send-delay" name="delaySeconds" type="number" min="0" max="900" placeholder="0" class="h-7 w-32 text-xs" />
+							</div>
+						{/if}
+
+						<div class="space-y-1.5">
+							<div class="flex items-center justify-between">
+								<Label class="text-xs">Message attributes</Label>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									class="h-6 px-1.5 text-xs"
+									onclick={() => msgAttrs = [...msgAttrs, { name: '', value: '', type: 'String' }]}
+								>
+									<PlusIcon class="size-3" /> Add
+								</Button>
+							</div>
+							{#each msgAttrs as attr, i}
+								<div class="flex items-center gap-1.5">
+									<Input bind:value={msgAttrs[i].name} placeholder="name" class="h-7 flex-1 text-xs font-mono" />
+									<Input bind:value={msgAttrs[i].value} placeholder="value" class="h-7 flex-1 text-xs font-mono" />
+									<select bind:value={msgAttrs[i].type} class="h-7 rounded border border-input bg-background px-1 text-xs">
+										<option value="String">String</option>
+										<option value="Number">Number</option>
+										<option value="Binary">Binary</option>
+									</select>
+									<button
+										type="button"
+										class="rounded p-1 text-muted-foreground hover:text-destructive"
+										aria-label="Remove attribute"
+										onclick={() => msgAttrs = msgAttrs.filter((_, j) => j !== i)}
+									>
+										<TrashIcon class="size-3" />
+									</button>
+								</div>
+							{/each}
+							<input type="hidden" name="attributes" value={JSON.stringify(msgAttrs.filter(a => a.name && a.value))} />
+						</div>
+					</div>
+				{/if}
+
 				<Button type="submit" size="sm">Send</Button>
 			</form>
 		</div>
 
 		<div class="console-panel space-y-3 p-4">
-			<h2 class="text-sm font-semibold">Attributes</h2>
+			<div class="flex items-center justify-between">
+				<h2 class="text-sm font-semibold">Attributes</h2>
+				{#if attrEntries.length > 8}
+					<button
+						type="button"
+						class="text-xs font-medium text-primary hover:underline"
+						onclick={() => (showAllAttrs = !showAllAttrs)}
+					>
+						{showAllAttrs ? 'Show less' : `Show all (${attrEntries.length})`}
+					</button>
+				{/if}
+			</div>
 			<dl class="space-y-1.5">
-				{#each attrKeys.slice(0, 8) as [k, v]}
+				{#each visibleAttrs as [k, v]}
 					<div class="flex items-baseline justify-between gap-2">
 						<dt class="shrink-0 text-xs text-muted-foreground">
 							{k.replace(/([A-Z])/g, ' $1').trim()}
 						</dt>
-						<dd class="max-w-[140px] truncate font-mono text-xs text-foreground/80" title={v}>{v}</dd>
+						<dd class="max-w-[180px] truncate font-mono text-xs text-foreground/80" title={v}>
+							{fmtAttr(k, v)}
+						</dd>
 					</div>
 				{/each}
 			</dl>
@@ -99,14 +203,31 @@
 
 	<!-- Messages -->
 	<div class="space-y-3">
-		<div class="page-header">
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 			<div>
 				<h2 class="text-sm font-semibold">Messages</h2>
 				<p class="mt-0.5 text-xs text-muted-foreground/60">
 					Received messages become temporarily invisible (visibility timeout applies).
 				</p>
 			</div>
-			<form method="POST" action="?/receiveMessages" use:enhance>
+			<form
+				method="POST"
+				action="?/receiveMessages"
+				use:enhance={toastingEnhance()}
+				class="flex flex-wrap items-end gap-2"
+			>
+				<div class="space-y-1">
+					<Label for="r-max" class="text-[10px] uppercase text-muted-foreground/70">Max</Label>
+					<Input id="r-max" name="maxMessages" type="number" min="1" max="10" bind:value={receiveMax} class="h-8 w-16 text-xs" />
+				</div>
+				<div class="space-y-1">
+					<Label for="r-vis" class="text-[10px] uppercase text-muted-foreground/70">Vis. timeout</Label>
+					<Input id="r-vis" name="visibilityTimeout" type="number" min="0" max="43200" bind:value={receiveVisibility} class="h-8 w-20 text-xs" />
+				</div>
+				<div class="space-y-1">
+					<Label for="r-wait" class="text-[10px] uppercase text-muted-foreground/70">Wait (s)</Label>
+					<Input id="r-wait" name="waitTimeSeconds" type="number" min="0" max="20" bind:value={receiveWait} class="h-8 w-16 text-xs" />
+				</div>
 				<Button type="submit" variant="outline" size="sm">
 					<svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 						<path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -130,6 +251,7 @@
 								<p class="mt-1 break-words text-sm">{msg.body}</p>
 							</div>
 							<div class="flex shrink-0 items-center gap-1">
+								<CopyButton text={msg.body ?? ''} label="Body" />
 								<Button
 									variant="ghost"
 									size="sm"
@@ -142,9 +264,11 @@
 									<form
 										method="POST"
 										action="?/deleteMessage"
-										use:enhance={() => () => {
-											messages = messages.filter((m) => m.messageId !== msg.messageId);
-										}}
+										use:enhance={toastingEnhance({
+											onSuccess: () => {
+												messages = messages.filter((m) => m.messageId !== msg.messageId);
+											}
+										})}
 									>
 										<input type="hidden" name="receiptHandle" value={msg.receiptHandle} />
 										<Button
@@ -205,7 +329,9 @@
 			<form
 				method="POST"
 				action="?/purgeQueue"
-				use:enhance={() => () => { showPurgeConfirm = false; messages = []; }}
+				use:enhance={toastingEnhance({
+					closeOnSuccess: () => { showPurgeConfirm = false; messages = []; }
+				})}
 			>
 				<Button type="submit" variant="destructive">Purge All Messages</Button>
 			</form>

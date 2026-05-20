@@ -3,6 +3,7 @@
 	import './layout.css';
 	import Header from '$lib/components/Header.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
+	import Toaster from '$lib/components/Toaster.svelte';
 	import favicon from '$lib/assets/favicon.svg';
 	import { theme } from '$lib/stores/theme.svelte';
 
@@ -48,3 +49,5 @@
 		</main>
 	</div>
 </div>
+
+<Toaster />

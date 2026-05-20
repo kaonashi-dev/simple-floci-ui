@@ -11,11 +11,12 @@ export const actions = {
 	deleteTable: async ({ request }) => {
 		const data = await request.formData();
 		const name = data.get('name') as string;
-		if (!name) return fail(400, { error: 'Table name is required' });
+		if (!name) return fail(400, { actionError: 'Table name is required' });
 		try {
 			await deleteTable(name);
+			return { success: `Table "${name}" deleted` };
 		} catch (e) {
-			return fail(500, { error: String(e) });
+			return fail(500, { actionError: String(e) });
 		}
 	}
 };

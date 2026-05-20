@@ -7,12 +7,19 @@
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import ListToolbar from '$lib/components/ListToolbar.svelte';
+	import { toastingEnhance } from '$lib/utils/formEnhance';
 	import { formatDate } from '$lib/utils/formatDate';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let showCreate = $state(false);
 	let confirmDelete: { id: string; name: string } | null = $state(null);
+	let search = $state('');
+
+	const filtered = $derived(
+		data.pools.filter((p) => `${p.name} ${p.id}`.toLowerCase().includes(search.toLowerCase()))
+	);
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -20,7 +27,7 @@
 		<div>
 			<p class="console-subtle-label">Identity</p>
 			<h1 class="mt-1.5 page-title">Cognito User Pools</h1>
-			<p class="mt-1 page-subtitle">{data.pools.length} pool{data.pools.length !== 1 ? 's' : ''}</p>
+			<p class="mt-1 page-subtitle">Manage local users, groups, and identities.</p>
 			<div class="mt-1.5 flex items-center gap-1">
 				<code class="truncate font-mono text-xs text-muted-foreground">{data.endpoint}</code>
 				<CopyButton text={data.endpoint} />
@@ -40,15 +47,14 @@
 		<ErrorPanel message="Could not load user pools" hint={data.error} />
 	{/if}
 
-	{#if form?.error}
-		<ErrorPanel message={form.error} />
-	{/if}
-
 	{#if showCreate}
 		<form
 			method="POST"
 			action="?/createPool"
-			use:enhance={() => () => { showCreate = false; }}
+			use:enhance={toastingEnhance({
+				successMessage: 'User pool created',
+				closeOnSuccess: () => (showCreate = false)
+			})}
 			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
 		>
 			<div class="flex-1 space-y-1.5">
@@ -61,6 +67,8 @@
 			</div>
 		</form>
 	{/if}
+
+	<ListToolbar bind:search placeholder="Filter pools…" total={data.pools.length} shown={filtered.length} unit="pool" />
 
 	{#if data.pools.length === 0 && !data.error}
 		<EmptyState title="No user pools" description="Create a user pool to get started." />
@@ -76,7 +84,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each data.pools as pool}
+					{#each filtered as pool}
 						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
 							<td class="px-4 py-3">
 								<a href="/cognito/{encodeURIComponent(pool.id)}" class="font-medium text-foreground hover:text-primary transition-colors">
@@ -107,6 +115,13 @@
 							</td>
 						</tr>
 					{/each}
+					{#if filtered.length === 0 && data.pools.length > 0}
+						<tr>
+							<td colspan="4" class="px-4 py-8 text-center text-sm text-muted-foreground/60">
+								No pools match "{search}"
+							</td>
+						</tr>
+					{/if}
 				</tbody>
 			</table>
 		</div>
@@ -124,7 +139,14 @@
 		</Dialog.Header>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (confirmDelete = null)}>Cancel</Button>
-			<form method="POST" action="?/deletePool" use:enhance={() => () => { confirmDelete = null; }}>
+			<form
+				method="POST"
+				action="?/deletePool"
+				use:enhance={toastingEnhance({
+					successMessage: 'User pool deleted',
+					closeOnSuccess: () => (confirmDelete = null)
+				})}
+			>
 				<input type="hidden" name="id" value={confirmDelete?.id} />
 				<Button type="submit" variant="destructive">Delete Pool</Button>
 			</form>

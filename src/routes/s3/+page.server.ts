@@ -11,22 +11,24 @@ export const actions = {
 	createBucket: async ({ request }) => {
 		const data = await request.formData();
 		const name = (data.get('name') as string)?.trim();
-		if (!name) return fail(400, { error: 'Bucket name is required' });
+		if (!name) return fail(400, { actionError: 'Bucket name is required' });
 		try {
 			await createBucket(name);
+			return { success: `Bucket "${name}" created` };
 		} catch (e) {
-			return fail(500, { error: String(e) });
+			return fail(500, { actionError: String(e) });
 		}
 	},
 
 	deleteBucket: async ({ request }) => {
 		const data = await request.formData();
 		const name = data.get('name') as string;
-		if (!name) return fail(400, { error: 'Bucket name is required' });
+		if (!name) return fail(400, { actionError: 'Bucket name is required' });
 		try {
 			await deleteBucket(name);
+			return { success: `Bucket "${name}" deleted` };
 		} catch (e) {
-			return fail(500, { error: String(e) });
+			return fail(500, { actionError: String(e) });
 		}
 	}
 };

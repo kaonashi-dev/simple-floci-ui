@@ -7,12 +7,24 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
+	import ListToolbar from '$lib/components/ListToolbar.svelte';
+	import { toastingEnhance } from '$lib/utils/formEnhance';
 	import { formatDate } from '$lib/utils/formatDate';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let showCreate = $state(false);
 	let confirmDeleteName: string | null = $state(null);
+	let search = $state('');
+	let typeFilter = $state<'all' | 'String' | 'SecureString' | 'StringList'>('all');
+
+	const filtered = $derived(
+		data.parameters.filter((p) => {
+			const matchesSearch = `${p.name} ${p.description ?? ''}`.toLowerCase().includes(search.toLowerCase());
+			const matchesType = typeFilter === 'all' || p.type === typeFilter;
+			return matchesSearch && matchesType;
+		})
+	);
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -20,7 +32,7 @@
 		<div>
 			<p class="console-subtle-label">Configuration</p>
 			<h1 class="mt-1.5 page-title">SSM Parameter Store</h1>
-			<p class="mt-1 page-subtitle">{data.parameters.length} parameter{data.parameters.length !== 1 ? 's' : ''}</p>
+			<p class="mt-1 page-subtitle">Browse and update SSM parameters.</p>
 		</div>
 		<div class="flex items-center gap-2">
 			<Button size="sm" onclick={() => (showCreate = !showCreate)}>
@@ -36,20 +48,19 @@
 		<ErrorPanel message="Could not load parameters" hint={data.error} />
 	{/if}
 
-	{#if form?.error}
-		<ErrorPanel message={form.error} />
-	{/if}
-
 	{#if showCreate}
 		<form
 			method="POST"
 			action="?/createParameter"
-			use:enhance={() => () => { showCreate = false; }}
+			use:enhance={toastingEnhance({
+				successMessage: 'Parameter created',
+				closeOnSuccess: () => (showCreate = false)
+			})}
 			class="console-panel flex flex-col gap-3 p-4"
 		>
 			<h2 class="text-sm font-semibold">Create Parameter</h2>
-			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-				<div class="space-y-1.5">
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+				<div class="space-y-1.5 sm:col-span-2">
 					<Label for="param-name" class="text-xs">Name</Label>
 					<Input id="param-name" name="name" placeholder="/my/parameter" required class="h-8 text-sm font-mono" />
 				</div>
@@ -63,6 +74,10 @@
 				</div>
 			</div>
 			<div class="space-y-1.5">
+				<Label for="param-desc" class="text-xs">Description (optional)</Label>
+				<Input id="param-desc" name="description" placeholder="What this parameter is for" class="h-8 text-sm" />
+			</div>
+			<div class="space-y-1.5">
 				<Label for="param-value" class="text-xs">Value</Label>
 				<Textarea id="param-value" name="value" placeholder="Parameter value" required rows={3} class="resize-none font-mono text-xs" />
 			</div>
@@ -72,6 +87,17 @@
 			</div>
 		</form>
 	{/if}
+
+	<ListToolbar bind:search placeholder="Filter by name or description…" total={data.parameters.length} shown={filtered.length} unit="parameter">
+		{#snippet children()}
+			<select bind:value={typeFilter} class="h-8 rounded border border-border bg-muted/30 px-2 text-xs">
+				<option value="all">All types</option>
+				<option value="String">String</option>
+				<option value="SecureString">SecureString</option>
+				<option value="StringList">StringList</option>
+			</select>
+		{/snippet}
+	</ListToolbar>
 
 	{#if data.parameters.length === 0 && !data.error}
 		<EmptyState title="No parameters" description="Create parameters to store configuration values." />
@@ -88,7 +114,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each data.parameters as param}
+					{#each filtered as param}
 						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
 							<td class="px-4 py-3">
 								<a href="/ssm/{encodeURIComponent(param.name)}" class="font-mono text-xs text-foreground hover:text-primary transition-colors">
@@ -126,6 +152,13 @@
 							</td>
 						</tr>
 					{/each}
+					{#if filtered.length === 0 && data.parameters.length > 0}
+						<tr>
+							<td colspan="5" class="px-4 py-8 text-center text-sm text-muted-foreground/60">
+								No parameters match the current filter.
+							</td>
+						</tr>
+					{/if}
 				</tbody>
 			</table>
 		</div>
@@ -142,7 +175,14 @@
 		</Dialog.Header>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (confirmDeleteName = null)}>Cancel</Button>
-			<form method="POST" action="?/deleteParameter" use:enhance={() => () => { confirmDeleteName = null; }}>
+			<form
+				method="POST"
+				action="?/deleteParameter"
+				use:enhance={toastingEnhance({
+					successMessage: 'Parameter deleted',
+					closeOnSuccess: () => (confirmDeleteName = null)
+				})}
+			>
 				<input type="hidden" name="name" value={confirmDeleteName} />
 				<Button type="submit" variant="destructive">Delete Parameter</Button>
 			</form>

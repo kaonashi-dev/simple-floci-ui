@@ -9,10 +9,19 @@ import {
 	ReceiveMessageCommand,
 	DeleteMessageCommand,
 	PurgeQueueCommand,
-	QueueAttributeName
+	SetQueueAttributesCommand,
+	QueueAttributeName,
+	type MessageAttributeValue
 } from '@aws-sdk/client-sqs';
 import { makeClient, paginateAll } from './aws';
-import type { SqsQueueSummary, SqsMessage } from '$lib/types/sqs';
+import type {
+	SqsQueueSummary,
+	SqsMessage,
+	SqsCreateQueueOptions,
+	SqsSendOptions,
+	SqsReceiveOptions,
+	SqsMessageAttributeInput
+} from '$lib/types/sqs';
 
 const sqs = makeClient(SQSClient);
 
@@ -33,7 +42,8 @@ export async function listQueues(): Promise<SqsQueueSummary[]> {
 						QueueUrl: url,
 						AttributeNames: [
 							QueueAttributeName.ApproximateNumberOfMessages,
-							QueueAttributeName.ApproximateNumberOfMessagesNotVisible
+							QueueAttributeName.ApproximateNumberOfMessagesNotVisible,
+							QueueAttributeName.ApproximateNumberOfMessagesDelayed
 						]
 					})
 				);
@@ -45,6 +55,9 @@ export async function listQueues(): Promise<SqsQueueSummary[]> {
 					),
 					approximateNumberOfMessagesNotVisible: Number(
 						attrs.Attributes?.ApproximateNumberOfMessagesNotVisible ?? 0
+					),
+					approximateNumberOfMessagesDelayed: Number(
+						attrs.Attributes?.ApproximateNumberOfMessagesDelayed ?? 0
 					)
 				} satisfies SqsQueueSummary;
 			} catch (e) {
@@ -66,32 +79,87 @@ export async function getQueueAttributes(queueUrl: string): Promise<Record<strin
 	return res.Attributes ?? {};
 }
 
-export async function createQueue(name: string): Promise<void> {
-	await sqs.send(new CreateQueueCommand({ QueueName: name }));
+export async function createQueue(name: string, opts: SqsCreateQueueOptions = {}): Promise<void> {
+	const attributes: Record<string, string> = {};
+	if (opts.fifo) {
+		attributes.FifoQueue = 'true';
+		attributes.ContentBasedDeduplication = 'true';
+	}
+	if (opts.visibilityTimeout != null) attributes.VisibilityTimeout = String(opts.visibilityTimeout);
+	if (opts.messageRetention != null)
+		attributes.MessageRetentionPeriod = String(opts.messageRetention);
+	if (opts.delaySeconds != null) attributes.DelaySeconds = String(opts.delaySeconds);
+	if (opts.maxMessageSizeKb != null)
+		attributes.MaximumMessageSize = String(opts.maxMessageSizeKb * 1024);
+
+	await sqs.send(
+		new CreateQueueCommand({
+			QueueName: name,
+			Attributes: Object.keys(attributes).length > 0 ? attributes : undefined
+		})
+	);
 }
 
 export async function deleteQueue(queueUrl: string): Promise<void> {
 	await sqs.send(new DeleteQueueCommand({ QueueUrl: queueUrl }));
 }
 
-export async function sendMessage(queueUrl: string, body: string): Promise<void> {
-	await sqs.send(new SendMessageCommand({ QueueUrl: queueUrl, MessageBody: body }));
+export async function setQueueAttributes(
+	queueUrl: string,
+	attributes: Record<string, string>
+): Promise<void> {
+	await sqs.send(new SetQueueAttributesCommand({ QueueUrl: queueUrl, Attributes: attributes }));
 }
 
-export async function receiveMessages(queueUrl: string, maxMessages = 10): Promise<SqsMessage[]> {
+function toMessageAttributes(
+	attrs?: SqsMessageAttributeInput[]
+): Record<string, MessageAttributeValue> | undefined {
+	if (!attrs?.length) return undefined;
+	const out: Record<string, MessageAttributeValue> = {};
+	for (const a of attrs) {
+		if (!a.name || !a.value) continue;
+		out[a.name] = { DataType: a.type ?? 'String', StringValue: a.value };
+	}
+	return Object.keys(out).length > 0 ? out : undefined;
+}
+
+export async function sendMessage(
+	queueUrl: string,
+	body: string,
+	opts: SqsSendOptions = {}
+): Promise<{ messageId?: string }> {
+	const res = await sqs.send(
+		new SendMessageCommand({
+			QueueUrl: queueUrl,
+			MessageBody: body,
+			DelaySeconds: opts.delaySeconds,
+			MessageGroupId: opts.messageGroupId,
+			MessageDeduplicationId: opts.messageDeduplicationId,
+			MessageAttributes: toMessageAttributes(opts.attributes)
+		})
+	);
+	return { messageId: res.MessageId };
+}
+
+export async function receiveMessages(
+	queueUrl: string,
+	opts: SqsReceiveOptions = {}
+): Promise<SqsMessage[]> {
 	const res = await sqs.send(
 		new ReceiveMessageCommand({
 			QueueUrl: queueUrl,
-			MaxNumberOfMessages: Math.min(maxMessages, 10),
+			MaxNumberOfMessages: Math.min(opts.maxMessages ?? 10, 10),
+			VisibilityTimeout: opts.visibilityTimeout,
+			WaitTimeSeconds: opts.waitTimeSeconds ?? 1,
 			AttributeNames: ['All'],
-			MessageAttributeNames: ['All'],
-			WaitTimeSeconds: 1
+			MessageAttributeNames: ['All']
 		})
 	);
 	return (res.Messages ?? []).map((m) => ({
 		messageId: m.MessageId,
 		body: m.Body,
 		receiptHandle: m.ReceiptHandle,
+		md5OfBody: m.MD5OfBody,
 		attributes: m.Attributes as Record<string, string> | undefined,
 		messageAttributes: m.MessageAttributes as Record<string, unknown> | undefined
 	}));

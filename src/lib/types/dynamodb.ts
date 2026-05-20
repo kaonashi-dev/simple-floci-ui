@@ -32,4 +32,5 @@ export type DynamoScanResult = {
 	items: DynamoItem[];
 	lastEvaluatedKey?: Record<string, unknown>;
 	count: number;
+	scannedCount?: number;
 };

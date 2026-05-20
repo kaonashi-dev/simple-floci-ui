@@ -58,8 +58,18 @@ export async function publish(arn: string, message: string, subject?: string): P
 	);
 }
 
-export async function createTopic(name: string): Promise<void> {
-	await sns.send(new CreateTopicCommand({ Name: name }));
+export async function createTopic(name: string, opts: { fifo?: boolean } = {}): Promise<void> {
+	const attributes: Record<string, string> = {};
+	if (opts.fifo) {
+		attributes.FifoTopic = 'true';
+		attributes.ContentBasedDeduplication = 'true';
+	}
+	await sns.send(
+		new CreateTopicCommand({
+			Name: name,
+			Attributes: Object.keys(attributes).length > 0 ? attributes : undefined
+		})
+	);
 }
 
 export async function deleteTopic(arn: string): Promise<void> {

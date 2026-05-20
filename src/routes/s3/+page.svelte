@@ -6,12 +6,19 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
+	import ListToolbar from '$lib/components/ListToolbar.svelte';
+	import { toastingEnhance } from '$lib/utils/formEnhance';
 	import { formatDate } from '$lib/utils/formatDate';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let showCreate = $state(false);
 	let confirmDeleteName: string | null = $state(null);
+	let search = $state('');
+
+	const filtered = $derived(
+		data.buckets.filter((b) => b.name.toLowerCase().includes(search.toLowerCase()))
+	);
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -19,7 +26,7 @@
 		<div>
 			<p class="console-subtle-label">Object Storage</p>
 			<h1 class="mt-1.5 page-title">S3 Buckets</h1>
-			<p class="mt-1 page-subtitle">{data.buckets.length} bucket{data.buckets.length !== 1 ? 's' : ''}</p>
+			<p class="mt-1 page-subtitle">Browse objects, prefixes, and uploads.</p>
 		</div>
 		<div class="flex items-center gap-2">
 			<Button size="sm" onclick={() => (showCreate = !showCreate)}>
@@ -35,15 +42,14 @@
 		<ErrorPanel message="Could not load buckets" hint={data.error} />
 	{/if}
 
-	{#if form?.error}
-		<ErrorPanel message={form.error} />
-	{/if}
-
 	{#if showCreate}
 		<form
 			method="POST"
 			action="?/createBucket"
-			use:enhance={() => () => { showCreate = false; }}
+			use:enhance={toastingEnhance({
+				successMessage: 'Bucket created',
+				closeOnSuccess: () => (showCreate = false)
+			})}
 			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
 		>
 			<div class="flex-1 space-y-1.5">
@@ -56,6 +62,8 @@
 			</div>
 		</form>
 	{/if}
+
+	<ListToolbar bind:search placeholder="Filter buckets…" total={data.buckets.length} shown={filtered.length} unit="bucket" />
 
 	{#if data.buckets.length === 0 && !data.error}
 		<EmptyState title="No buckets" description="Create a bucket to get started." />
@@ -70,7 +78,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each data.buckets as bucket}
+					{#each filtered as bucket}
 						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
 							<td class="px-4 py-3">
 								<a href="/s3/{encodeURIComponent(bucket.name)}" class="font-medium text-foreground hover:text-primary transition-colors">
@@ -95,6 +103,13 @@
 							</td>
 						</tr>
 					{/each}
+					{#if filtered.length === 0 && data.buckets.length > 0}
+						<tr>
+							<td colspan="3" class="px-4 py-8 text-center text-sm text-muted-foreground/60">
+								No buckets match "{search}"
+							</td>
+						</tr>
+					{/if}
 				</tbody>
 			</table>
 		</div>
@@ -111,7 +126,14 @@
 		</Dialog.Header>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (confirmDeleteName = null)}>Cancel</Button>
-			<form method="POST" action="?/deleteBucket" use:enhance={() => () => { confirmDeleteName = null; }}>
+			<form
+				method="POST"
+				action="?/deleteBucket"
+				use:enhance={toastingEnhance({
+					successMessage: 'Bucket deleted',
+					closeOnSuccess: () => (confirmDeleteName = null)
+				})}
+			>
 				<input type="hidden" name="name" value={confirmDeleteName} />
 				<Button type="submit" variant="destructive">Delete Bucket</Button>
 			</form>

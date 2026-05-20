@@ -131,12 +131,17 @@ export async function listAliases(keyId?: string): Promise<KmsAlias[]> {
 		}));
 }
 
-export async function createKey(description?: string): Promise<string> {
+export async function createKey(
+	description?: string,
+	keyUsage: KeyUsageType = KeyUsageType.ENCRYPT_DECRYPT
+): Promise<string> {
+	const keySpec =
+		keyUsage === KeyUsageType.SIGN_VERIFY ? KeySpec.RSA_2048 : KeySpec.SYMMETRIC_DEFAULT;
 	const res = await kms.send(
 		new CreateKeyCommand({
 			Description: description || undefined,
-			KeyUsage: KeyUsageType.ENCRYPT_DECRYPT,
-			KeySpec: KeySpec.SYMMETRIC_DEFAULT
+			KeyUsage: keyUsage,
+			KeySpec: keySpec
 		})
 	);
 	return res.KeyMetadata!.KeyId!;

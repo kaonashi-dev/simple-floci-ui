@@ -7,12 +7,20 @@
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import ListToolbar from '$lib/components/ListToolbar.svelte';
+	import { toastingEnhance } from '$lib/utils/formEnhance';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let showCreate = $state(false);
+	let isFifo = $state(false);
 	let confirmDeleteUrl: string | null = $state(null);
 	let confirmDeleteName: string | null = $state(null);
+	let search = $state('');
+
+	const filtered = $derived(
+		data.queues.filter((q) => q.name.toLowerCase().includes(search.toLowerCase()))
+	);
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -20,7 +28,7 @@
 		<div>
 			<p class="console-subtle-label">Messaging</p>
 			<h1 class="mt-1.5 page-title">SQS Queues</h1>
-			<p class="mt-1 page-subtitle">{data.queues.length} queue{data.queues.length !== 1 ? 's' : ''}</p>
+			<p class="mt-1 page-subtitle">Inspect message flow, depth, and FIFO queues.</p>
 		</div>
 		<div class="flex items-center gap-2">
 			<Button size="sm" onclick={() => (showCreate = !showCreate)}>
@@ -36,20 +44,52 @@
 		<ErrorPanel message="Could not load queues" hint={data.error} />
 	{/if}
 
-	{#if form?.error}
-		<ErrorPanel message={form.error} />
-	{/if}
-
 	{#if showCreate}
 		<form
 			method="POST"
 			action="?/createQueue"
-			use:enhance={() => () => { showCreate = false; }}
-			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
+			use:enhance={toastingEnhance({
+				successMessage: 'Queue created',
+				closeOnSuccess: () => { showCreate = false; isFifo = false; }
+			})}
+			class="console-panel flex flex-col gap-3 p-4"
 		>
-			<div class="flex-1 space-y-1.5">
-				<Label for="queue-name" class="text-xs">Queue name</Label>
-				<Input id="queue-name" name="name" placeholder="my-queue" required class="h-8 text-sm" />
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+				<div class="space-y-1.5">
+					<Label for="queue-name" class="text-xs">Queue name {isFifo ? '(.fifo suffix required)' : ''}</Label>
+					<Input id="queue-name" name="name" placeholder={isFifo ? 'my-queue.fifo' : 'my-queue'} required class="h-8 text-sm" />
+				</div>
+				<div class="space-y-1.5">
+					<Label class="text-xs">Type</Label>
+					<div class="flex h-8 items-center gap-3 text-xs">
+						<label class="flex items-center gap-1.5">
+							<input type="radio" name="type" value="standard" checked={!isFifo} onchange={() => (isFifo = false)} />
+							Standard
+						</label>
+						<label class="flex items-center gap-1.5">
+							<input type="radio" name="type" value="fifo" checked={isFifo} onchange={() => (isFifo = true)} />
+							FIFO
+						</label>
+					</div>
+				</div>
+			</div>
+			<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+				<div class="space-y-1.5">
+					<Label for="visibility" class="text-xs">Visibility timeout (s)</Label>
+					<Input id="visibility" name="visibilityTimeout" type="number" min="0" max="43200" placeholder="30" class="h-8 text-sm" />
+				</div>
+				<div class="space-y-1.5">
+					<Label for="retention" class="text-xs">Retention (s)</Label>
+					<Input id="retention" name="messageRetention" type="number" min="60" max="1209600" placeholder="345600" class="h-8 text-sm" />
+				</div>
+				<div class="space-y-1.5">
+					<Label for="delay" class="text-xs">Delivery delay (s)</Label>
+					<Input id="delay" name="delaySeconds" type="number" min="0" max="900" placeholder="0" class="h-8 text-sm" />
+				</div>
+				<div class="space-y-1.5">
+					<Label for="maxSize" class="text-xs">Max msg size (KB)</Label>
+					<Input id="maxSize" name="maxMessageSizeKb" type="number" min="1" max="256" placeholder="256" class="h-8 text-sm" />
+				</div>
 			</div>
 			<div class="flex gap-2">
 				<Button type="submit" size="sm">Create</Button>
@@ -57,6 +97,8 @@
 			</div>
 		</form>
 	{/if}
+
+	<ListToolbar bind:search placeholder="Filter queues…" total={data.queues.length} shown={filtered.length} unit="queue" />
 
 	{#if data.queues.length === 0 && !data.error}
 		<EmptyState title="No queues" description="Create a queue to get started." />
@@ -66,13 +108,15 @@
 				<thead>
 					<tr class="border-b border-border">
 						<th class="table-th">Queue Name</th>
+						<th class="table-th w-16">Type</th>
 						<th class="table-th-right w-28">Available</th>
 						<th class="table-th-right w-28">In-Flight</th>
+						<th class="table-th-right w-28">Delayed</th>
 						<th class="table-th-right w-32">Actions</th>
 					</tr>
 				</thead>
 				<tbody>
-					{#each data.queues as queue}
+					{#each filtered as queue}
 						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
 							<td class="px-4 py-3">
 								<div class="flex items-center gap-1.5">
@@ -85,11 +129,21 @@
 									{/if}
 								</div>
 							</td>
+							<td class="px-4 py-3">
+								{#if queue.name.endsWith('.fifo')}
+									<span class="console-tag border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-300">FIFO</span>
+								{:else}
+									<span class="console-tag border-border bg-muted/30 text-muted-foreground">std</span>
+								{/if}
+							</td>
 							<td class="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">
 								{queue.approximateNumberOfMessages ?? '—'}
 							</td>
 							<td class="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">
 								{queue.approximateNumberOfMessagesNotVisible ?? '—'}
+							</td>
+							<td class="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">
+								{queue.approximateNumberOfMessagesDelayed ?? '—'}
 							</td>
 							<td class="px-4 py-3 text-right">
 								<div class="flex items-center justify-end gap-1">
@@ -108,6 +162,13 @@
 							</td>
 						</tr>
 					{/each}
+					{#if filtered.length === 0 && data.queues.length > 0}
+						<tr>
+							<td colspan="6" class="px-4 py-8 text-center text-sm text-muted-foreground/60">
+								No queues match "{search}"
+							</td>
+						</tr>
+					{/if}
 				</tbody>
 			</table>
 		</div>
@@ -127,10 +188,18 @@
 			<Button variant="outline" onclick={() => { confirmDeleteUrl = null; confirmDeleteName = null; }}>
 				Cancel
 			</Button>
-			<form method="POST" action="?/deleteQueue" use:enhance={() => () => { confirmDeleteUrl = null; confirmDeleteName = null; }}>
+			<form
+				method="POST"
+				action="?/deleteQueue"
+				use:enhance={toastingEnhance({
+					successMessage: 'Queue deleted',
+					closeOnSuccess: () => { confirmDeleteUrl = null; confirmDeleteName = null; }
+				})}
+			>
 				<input type="hidden" name="url" value={confirmDeleteUrl} />
 				<Button type="submit" variant="destructive">Delete Queue</Button>
 			</form>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
+

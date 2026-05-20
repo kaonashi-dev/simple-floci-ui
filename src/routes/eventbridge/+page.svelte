@@ -3,8 +3,14 @@
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import ListToolbar from '$lib/components/ListToolbar.svelte';
 
 	let { data } = $props();
+	let search = $state('');
+
+	const filtered = $derived(
+		data.buses.filter((b) => b.name.toLowerCase().includes(search.toLowerCase()))
+	);
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -12,13 +18,15 @@
 		<div>
 			<p class="console-subtle-label">Integration</p>
 			<h1 class="mt-1.5 page-title">EventBridge</h1>
-			<p class="mt-1 page-subtitle">{data.buses.length} event bus{data.buses.length !== 1 ? 'es' : ''}</p>
+			<p class="mt-1 page-subtitle">Manage event buses, rules, and targets.</p>
 		</div>
 	</div>
 
 	{#if data.error}
 		<ErrorPanel message="Could not load event buses" hint={data.error} />
 	{/if}
+
+	<ListToolbar bind:search placeholder="Filter buses…" total={data.buses.length} shown={filtered.length} unit="bus" />
 
 	{#if data.buses.length === 0 && !data.error}
 		<EmptyState title="No event buses" description="No EventBridge buses found." />
@@ -33,7 +41,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each data.buses as bus}
+					{#each filtered as bus}
 						<tr class="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
 							<td class="px-4 py-3">
 								<a
@@ -42,6 +50,9 @@
 								>
 									{bus.name}
 								</a>
+								{#if bus.name === 'default'}
+									<span class="ml-2 console-tag border-primary/30 bg-primary/10 text-primary">default</span>
+								{/if}
 							</td>
 							<td class="px-4 py-3">
 								<div class="flex items-center gap-1.5">
@@ -56,6 +67,13 @@
 							</td>
 						</tr>
 					{/each}
+					{#if filtered.length === 0 && data.buses.length > 0}
+						<tr>
+							<td colspan="3" class="px-4 py-8 text-center text-sm text-muted-foreground/60">
+								No buses match "{search}"
+							</td>
+						</tr>
+					{/if}
 				</tbody>
 			</table>
 		</div>
