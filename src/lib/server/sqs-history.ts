@@ -1,4 +1,5 @@
-import db from './db';
+import { statSync } from 'node:fs';
+import db, { DB_PATH } from './db';
 import type { SqsHistoryEvent, SqsQueueStats } from '$lib/types/sqs-history';
 import type { SqsMessage } from '$lib/types/sqs';
 
@@ -105,4 +106,22 @@ export function getQueueStats(queueName: string): SqsQueueStats {
 		minQueueTimeMs: row.min_queue_time_ms,
 		maxQueueTimeMs: row.max_queue_time_ms
 	};
+}
+
+export function resetDb(): void {
+	db.exec('DELETE FROM sqs_message_events');
+	db.exec('VACUUM');
+}
+
+export function getDbStats(): { path: string; sizeBytes: number; totalEvents: number } {
+	const totalEvents = (
+		db.prepare('SELECT COUNT(*) AS n FROM sqs_message_events').get() as { n: number }
+	).n;
+	let sizeBytes = 0;
+	try {
+		sizeBytes = statSync(DB_PATH).size;
+	} catch {
+		// file might not exist yet on first call (edge case)
+	}
+	return { path: DB_PATH, sizeBytes, totalEvents };
 }

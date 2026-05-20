@@ -1,9 +1,9 @@
 import Database from 'better-sqlite3';
 import { join } from 'node:path';
 
-const dbPath = process.env.FLOCI_DB_PATH ?? join(process.cwd(), 'floci.db');
+export const DB_PATH = process.env.FLOCI_DB_PATH ?? join(process.cwd(), 'floci.db');
 
-const db = new Database(dbPath);
+const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 
 db.exec(`
