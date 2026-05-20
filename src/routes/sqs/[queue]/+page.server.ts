@@ -7,6 +7,7 @@ import {
 	purgeQueue,
 	setQueueAttributes
 } from '$lib/server/sqs';
+import { recordSent, recordReceived, recordDeleted } from '$lib/server/sqs-history';
 import { safeLoad } from '$lib/server/load';
 import { fail } from '@sveltejs/kit';
 import type { SqsMessageAttributeInput } from '$lib/types/sqs';
@@ -74,6 +75,7 @@ export const actions = {
 					: undefined,
 				attributes: parseAttributes(data.get('attributes'))
 			});
+			recordSent(name, res.messageId, body);
 			return { success: `Message sent (${res.messageId ?? 'ok'})`, action: 'send' };
 		} catch (e) {
 			return fail(500, { actionError: String(e), action: 'send' });
@@ -90,6 +92,7 @@ export const actions = {
 				visibilityTimeout: num(data.get('visibilityTimeout')),
 				waitTimeSeconds: num(data.get('waitTimeSeconds'))
 			});
+			if (messages.length > 0) recordReceived(name, messages);
 			return { messages, action: 'receive' };
 		} catch (e) {
 			return fail(500, { actionError: String(e), action: 'receive' });
@@ -103,6 +106,7 @@ export const actions = {
 		try {
 			const url = await getQueueUrl(name);
 			await deleteMessage(url, receiptHandle);
+			recordDeleted(name);
 			return { success: 'Message deleted', action: 'delete' };
 		} catch (e) {
 			return fail(500, { actionError: String(e), action: 'delete' });

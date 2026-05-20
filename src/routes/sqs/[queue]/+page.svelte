@@ -56,6 +56,11 @@
 				<path stroke-linecap="round" stroke-linejoin="round" d="M1 1l4 4-4 4"/>
 			</svg>
 			<span class="truncate font-medium text-foreground">{data.name}</span>
+			<span class="text-border">·</span>
+			<a
+				href="/sqs/{encodeURIComponent(data.name)}/history"
+				class="rounded px-1.5 py-1 transition-colors hover:bg-muted hover:text-foreground"
+			>History</a>
 		</nav>
 		<div class="flex items-center gap-2">
 			<h1 class="truncate page-title">{data.name}</h1>
