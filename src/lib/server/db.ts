@@ -1,24 +1,72 @@
-import { Database } from 'bun:sqlite';
+import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-export const DB_PATH = process.env.FLOCI_DB_PATH ?? join(process.cwd(), 'floci.db');
+export const DB_PATH = process.env.FLOCI_DB_PATH ?? join(process.cwd(), 'floci.json');
 
-const db = new Database(DB_PATH, { create: true });
-db.exec('PRAGMA journal_mode = WAL');
+export type DbEvent = {
+	id: number;
+	queueName: string;
+	messageId: string | null;
+	eventType: 'sent' | 'received' | 'deleted';
+	bodyPreview: string | null;
+	sentTsMs: number | null;
+	eventAtMs: number;
+	queueTimeMs: number | null;
+};
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS sqs_message_events (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    queue_name    TEXT    NOT NULL,
-    message_id    TEXT,
-    event_type    TEXT    NOT NULL,
-    body_preview  TEXT,
-    sent_ts_ms    INTEGER,
-    event_at_ms   INTEGER NOT NULL,
-    queue_time_ms INTEGER
-  );
-  CREATE INDEX IF NOT EXISTS idx_sqs_events_queue
-    ON sqs_message_events(queue_name, event_at_ms DESC);
-`);
+type Store = { events: DbEvent[]; seq: number };
 
-export default db;
+let store: Store = { events: [], seq: 0 };
+try {
+	if (existsSync(DB_PATH)) {
+		store = JSON.parse(readFileSync(DB_PATH, 'utf8'));
+	}
+} catch {
+	/* start fresh if file is corrupt */
+}
+
+function persist(): void {
+	writeFileSync(DB_PATH, JSON.stringify(store));
+}
+
+export function insertEvent(event: Omit<DbEvent, 'id'>): void {
+	store.seq += 1;
+	store.events.push({ id: store.seq, ...event });
+	persist();
+}
+
+export function queryEvents(queueName: string, limit: number): DbEvent[] {
+	return store.events
+		.filter((e) => e.queueName === queueName)
+		.sort((a, b) => b.eventAtMs - a.eventAtMs)
+		.slice(0, limit);
+}
+
+export function statsForQueue(queueName: string) {
+	const events = store.events.filter((e) => e.queueName === queueName);
+	const qtimes = events.map((e) => e.queueTimeMs).filter((q): q is number => q !== null);
+	const sum = qtimes.reduce((a, b) => a + b, 0);
+	return {
+		totalSent: events.filter((e) => e.eventType === 'sent').length,
+		totalReceived: events.filter((e) => e.eventType === 'received').length,
+		totalDeleted: events.filter((e) => e.eventType === 'deleted').length,
+		avgQueueTimeMs: qtimes.length ? sum / qtimes.length : null,
+		minQueueTimeMs: qtimes.length ? Math.min(...qtimes) : null,
+		maxQueueTimeMs: qtimes.length ? Math.max(...qtimes) : null
+	};
+}
+
+export function resetStore(): void {
+	store = { events: [], seq: 0 };
+	persist();
+}
+
+export function storeInfo(): { path: string; sizeBytes: number; totalEvents: number } {
+	let sizeBytes = 0;
+	try {
+		sizeBytes = statSync(DB_PATH).size;
+	} catch {
+		/* file might not exist on very first load */
+	}
+	return { path: DB_PATH, sizeBytes, totalEvents: store.events.length };
+}
