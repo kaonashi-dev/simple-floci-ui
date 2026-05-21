@@ -10,27 +10,49 @@ A local AWS services dashboard for the Floci project. Browse and inspect resourc
 - [AWS SDK v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/)
 - [Bun](https://bun.sh) as the package manager and runtime
 
+## Prerequisites
+
+- **[Bun](https://bun.sh)** — runtime and package manager
+
+  ```sh
+  curl -fsSL https://bun.sh/install | bash
+  ```
+
+- **A local AWS endpoint** — designed for [LocalStack](https://localstack.cloud) or any compatible emulator. Start it before running the app:
+
+  ```sh
+  # with Docker
+  docker run --rm -p 4566:4566 localstack/localstack
+
+  # or with the LocalStack CLI
+  localstack start
+  ```
+
 ## Getting started
 
 ```sh
+git clone <repo-url>
+cd floci-ui-explorer
+
+cp .env.example .env   # defaults point to localhost:4566, edit if needed
 bun install
 bun run dev
 ```
 
-The app runs at **http://localhost:5975**.
+Open **http://localhost:5975**. The header shows a green indicator when the app can reach your local endpoint.
 
 ## Configuration
 
-The app connects to a local AWS endpoint. Configure via environment variables:
+All configuration lives in `.env`:
 
 | Variable | Default | Description |
 |---|---|---|
-| `AWS_ENDPOINT_URL` | `http://localhost:4566` | Local AWS endpoint (e.g. LocalStack) |
+| `AWS_ENDPOINT_URL` | `http://localhost:4566` | Local AWS endpoint |
 | `AWS_REGION` | `us-east-1` | AWS region |
-| `AWS_ACCESS_KEY_ID` | `test` | Access key (any value for local) |
-| `AWS_SECRET_ACCESS_KEY` | `test` | Secret key (any value for local) |
+| `AWS_ACCESS_KEY_ID` | `test` | Any value works for LocalStack |
+| `AWS_SECRET_ACCESS_KEY` | `test` | Any value works for LocalStack |
 
-Create a `.env` file at the project root to override defaults.
+The defaults in `.env.example` work out of the box with a standard LocalStack setup.
 
 ## Services
 
