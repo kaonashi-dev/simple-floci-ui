@@ -2,7 +2,9 @@
 	import MenuIcon from '@lucide/svelte/icons/menu';
 	import MoonIcon from '@lucide/svelte/icons/moon';
 	import ServerCogIcon from '@lucide/svelte/icons/server-cog';
+	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import SunIcon from '@lucide/svelte/icons/sun';
+	import { page } from '$app/stores';
 	import { theme } from '$lib/stores/theme.svelte';
 	import type { ConnectionStatus } from '$lib/types/common';
 
@@ -45,6 +47,17 @@
 				<MoonIcon class="size-3.5" />
 			{/if}
 		</button>
+
+		<a
+			href="/settings"
+			aria-label="Settings"
+			class="flex size-7 items-center justify-center rounded transition-colors hover:bg-sidebar-accent
+				{$page.url.pathname === '/settings'
+					? 'text-sidebar-accent-foreground bg-sidebar-accent'
+					: 'text-sidebar-foreground/60 hover:text-sidebar-accent-foreground'}"
+		>
+			<SettingsIcon class="size-3.5" />
+		</a>
 
 		{#if connection.ok}
 			<div class="flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[11px]">
