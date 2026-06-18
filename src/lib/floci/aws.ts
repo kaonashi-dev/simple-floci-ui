@@ -15,14 +15,14 @@ function resolve() {
 		const s = getConnectionSettings();
 		return {
 			region: s.region || 'us-east-1',
-			endpoint: s.endpoint || 'https://localhost.localstack.cloud:4566',
+			endpoint: s.endpoint || 'http://localhost:4567',
 			accessKeyId: s.accessKeyId || 'test',
 			secretAccessKey: s.secretAccessKey || 'test'
 		};
 	}
 	return {
 		region: process.env.AWS_REGION || 'us-east-1',
-		endpoint: process.env.AWS_ENDPOINT_URL || 'http://localhost:4566',
+		endpoint: process.env.AWS_ENDPOINT_URL || 'http://localhost:4567',
 		accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
 		secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test'
 	};

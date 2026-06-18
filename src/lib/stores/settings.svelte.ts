@@ -3,10 +3,7 @@ import { browser } from '$app/environment';
 const STORAGE_KEY = 'floci-connection';
 
 export const DEFAULT_CONNECTION = {
-	// LocalStack serves trusted HTTPS on this loopback domain, which keeps the
-	// browser-direct connection working in every browser (incl. Safari) without
-	// mixed-content/cert warnings. Each dev points at their own local instance.
-	endpoint: 'https://localhost.localstack.cloud:4566',
+	endpoint: 'http://localhost:4567',
 	region: 'us-east-1',
 	accessKeyId: 'test',
 	secretAccessKey: 'test'
