@@ -1,16 +1,25 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ListToolbar from '$lib/components/ListToolbar.svelte';
-	import { toastingEnhance } from '$lib/utils/formEnhance';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { deleteTable } from '$lib/floci/dynamodb';
 	import { formatDate } from '$lib/utils/formatDate';
 
 	let { data } = $props();
 	let confirmDelete: string | null = $state(null);
 	let search = $state('');
+
+	async function handleDelete(fd: FormData) {
+		const name = fd.get('name') as string;
+		if (!name) throw new Error('Table name is required');
+		await deleteTable(name);
+		return { success: `Table "${name}" deleted` };
+	}
 
 	const filtered = $derived(
 		data.tables.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()))
@@ -123,9 +132,8 @@
 			<Button variant="outline" onclick={() => (confirmDelete = null)}>Cancel</Button>
 			<form
 				method="POST"
-				action="?/deleteTable"
-				use:enhance={toastingEnhance({
-					successMessage: 'Table deleted',
+				use:enhance={clientAction(handleDelete, {
+					onSuccess: () => invalidateAll(),
 					closeOnSuccess: () => (confirmDelete = null)
 				})}
 			>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
@@ -8,7 +9,8 @@
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ListToolbar from '$lib/components/ListToolbar.svelte';
-	import { toastingEnhance } from '$lib/utils/formEnhance';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { putParameter, deleteParameter } from '$lib/floci/ssm';
 	import { formatDate } from '$lib/utils/formatDate';
 
 	let { data } = $props();
@@ -25,6 +27,24 @@
 			return matchesSearch && matchesType;
 		})
 	);
+
+	async function handleCreate(fd: FormData) {
+		const name = (fd.get('name') as string)?.trim();
+		const value = fd.get('value') as string;
+		const type = (fd.get('type') as string) || 'String';
+		const description = ((fd.get('description') as string) || '').trim();
+		if (!name) throw new Error('Parameter name is required');
+		if (!value) throw new Error('Parameter value is required');
+		await putParameter(name, value, type, false, description || undefined);
+		return { success: `Parameter "${name}" created` };
+	}
+
+	async function handleDelete(fd: FormData) {
+		const name = fd.get('name') as string;
+		if (!name) throw new Error('Parameter name is required');
+		await deleteParameter(name);
+		return { success: `Parameter "${name}" deleted` };
+	}
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -51,9 +71,8 @@
 	{#if showCreate}
 		<form
 			method="POST"
-			action="?/createParameter"
-			use:enhance={toastingEnhance({
-				successMessage: 'Parameter created',
+			use:enhance={clientAction(handleCreate, {
+				onSuccess: () => invalidateAll(),
 				closeOnSuccess: () => (showCreate = false)
 			})}
 			class="console-panel flex flex-col gap-3 p-4"
@@ -177,9 +196,8 @@
 			<Button variant="outline" onclick={() => (confirmDeleteName = null)}>Cancel</Button>
 			<form
 				method="POST"
-				action="?/deleteParameter"
-				use:enhance={toastingEnhance({
-					successMessage: 'Parameter deleted',
+				use:enhance={clientAction(handleDelete, {
+					onSuccess: () => invalidateAll(),
 					closeOnSuccess: () => (confirmDeleteName = null)
 				})}
 			>

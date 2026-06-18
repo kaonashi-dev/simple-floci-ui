@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -8,7 +9,8 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import ListToolbar from '$lib/components/ListToolbar.svelte';
-	import { toastingEnhance } from '$lib/utils/formEnhance';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { createTopic, deleteTopic } from '$lib/floci/sns';
 
 	let { data } = $props();
 
@@ -21,6 +23,22 @@
 	const filtered = $derived(
 		data.topics.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()))
 	);
+
+	async function handleCreate(fd: FormData) {
+		let name = (fd.get('name') as string)?.trim();
+		if (!name) throw new Error('Topic name is required');
+		const fifo = fd.get('type') === 'fifo';
+		if (fifo && !name.endsWith('.fifo')) name = `${name}.fifo`;
+		await createTopic(name, { fifo });
+		return { success: `Topic "${name}" created` };
+	}
+
+	async function handleDelete(fd: FormData) {
+		const arn = fd.get('arn') as string;
+		if (!arn) throw new Error('Topic ARN is required');
+		await deleteTopic(arn);
+		return { success: 'Topic deleted' };
+	}
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -47,9 +65,8 @@
 	{#if showCreate}
 		<form
 			method="POST"
-			action="?/createTopic"
-			use:enhance={toastingEnhance({
-				successMessage: 'Topic created',
+			use:enhance={clientAction(handleCreate, {
+				onSuccess: () => invalidateAll(),
 				closeOnSuccess: () => { showCreate = false; isFifo = false; }
 			})}
 			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
@@ -167,9 +184,8 @@
 			</Button>
 			<form
 				method="POST"
-				action="?/deleteTopic"
-				use:enhance={toastingEnhance({
-					successMessage: 'Topic deleted',
+				use:enhance={clientAction(handleDelete, {
+					onSuccess: () => invalidateAll(),
 					closeOnSuccess: () => { confirmDeleteArn = null; confirmDeleteName = null; }
 				})}
 			>

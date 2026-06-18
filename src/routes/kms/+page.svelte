@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -8,7 +9,9 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import ListToolbar from '$lib/components/ListToolbar.svelte';
-	import { toastingEnhance } from '$lib/utils/formEnhance';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { createKey, enableKey, disableKey, scheduleKeyDeletion } from '$lib/floci/kms';
+	import { KeyUsageType } from '@aws-sdk/client-kms';
 	import { formatDate } from '$lib/utils/formatDate';
 	import { cn } from '$lib/utils';
 
@@ -19,6 +22,32 @@
 	let scheduleDays = $state(7);
 	let search = $state('');
 	let stateFilter = $state<'all' | 'Enabled' | 'Disabled' | 'PendingDeletion'>('all');
+
+	async function handleCreate(fd: FormData) {
+		const description = (fd.get('description') as string)?.trim() || undefined;
+		const usage = (fd.get('keyUsage') as string) || 'ENCRYPT_DECRYPT';
+		const keyUsage =
+			usage === 'SIGN_VERIFY' ? KeyUsageType.SIGN_VERIFY : KeyUsageType.ENCRYPT_DECRYPT;
+		const keyId = await createKey(description, keyUsage);
+		return { success: `Key ${keyId} created` };
+	}
+
+	async function handleDisable(fd: FormData) {
+		await disableKey(fd.get('keyId') as string);
+		return { success: 'Key disabled' };
+	}
+
+	async function handleEnable(fd: FormData) {
+		await enableKey(fd.get('keyId') as string);
+		return { success: 'Key enabled' };
+	}
+
+	async function handleSchedule(fd: FormData) {
+		const keyId = fd.get('keyId') as string;
+		const days = parseInt(fd.get('days') as string, 10) || 7;
+		await scheduleKeyDeletion(keyId, days);
+		return { success: `Key scheduled for deletion in ${days} days` };
+	}
 
 	const filtered = $derived(
 		data.keys.filter((k) => {
@@ -61,9 +90,8 @@
 	{#if showCreate}
 		<form
 			method="POST"
-			action="?/createKey"
-			use:enhance={toastingEnhance({
-				successMessage: 'Key created',
+			use:enhance={clientAction(handleCreate, {
+				onSuccess: () => invalidateAll(),
 				closeOnSuccess: () => (showCreate = false)
 			})}
 			class="console-panel flex flex-col gap-3 p-4"
@@ -167,12 +195,12 @@
 										Open
 									</Button>
 									{#if key.keyState === 'Enabled'}
-										<form method="POST" action="?/disableKey" use:enhance={toastingEnhance({ successMessage: 'Key disabled' })}>
+										<form method="POST" use:enhance={clientAction(handleDisable, { onSuccess: () => invalidateAll() })}>
 											<input type="hidden" name="keyId" value={key.keyId} />
 											<Button variant="ghost" size="sm" class="h-7 px-2 text-xs" type="submit">Disable</Button>
 										</form>
 									{:else if key.keyState === 'Disabled'}
-										<form method="POST" action="?/enableKey" use:enhance={toastingEnhance({ successMessage: 'Key enabled' })}>
+										<form method="POST" use:enhance={clientAction(handleEnable, { onSuccess: () => invalidateAll() })}>
 											<input type="hidden" name="keyId" value={key.keyId} />
 											<Button variant="ghost" size="sm" class="h-7 px-2 text-xs" type="submit">Enable</Button>
 										</form>
@@ -231,9 +259,8 @@
 			<Button variant="outline" onclick={() => (confirmSchedule = null)}>Cancel</Button>
 			<form
 				method="POST"
-				action="?/scheduleDelete"
-				use:enhance={toastingEnhance({
-					successMessage: 'Deletion scheduled',
+				use:enhance={clientAction(handleSchedule, {
+					onSuccess: () => invalidateAll(),
 					closeOnSuccess: () => (confirmSchedule = null)
 				})}
 			>

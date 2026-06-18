@@ -12,21 +12,80 @@
 	import FileTextIcon from '@lucide/svelte/icons/file-text';
 	import FileTypeIcon from '@lucide/svelte/icons/file-type';
 	import FolderIcon from '@lucide/svelte/icons/folder';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import Breadcrumbs from '$lib/components/Breadcrumbs.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { toast } from '$lib/stores/toast.svelte';
+	import {
+		uploadObject,
+		deleteObject,
+		getObject,
+		putBucketCorsAllowAll
+	} from '$lib/floci/s3';
 	import { formatBytes } from '$lib/utils/formatBytes';
 	import { formatDate } from '$lib/utils/formatDate';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let confirmDeleteKey: string | null = $state(null);
 	let fileInput: HTMLInputElement;
 
 	const totalItems = $derived(data.listing.folders.length + data.listing.files.length);
+
+	async function handleSetCors() {
+		await putBucketCorsAllowAll(data.bucket);
+		return { success: 'CORS configured — all origins allowed' };
+	}
+
+	async function handleUpload(fd: FormData) {
+		const file = fd.get('file') as File | null;
+		if (!file || file.size === 0) throw new Error('No file selected');
+		const key = data.prefix + file.name;
+		const bytes = new Uint8Array(await file.arrayBuffer());
+		await uploadObject(data.bucket, key, bytes, file.type || undefined);
+		return { success: `Uploaded ${file.name}` };
+	}
+
+	async function handleDelete(fd: FormData) {
+		const key = fd.get('key') as string;
+		if (!key) throw new Error('Object key is required');
+		await deleteObject(data.bucket, key);
+		return { success: `Deleted ${key}` };
+	}
+
+	async function downloadFile(key: string) {
+		try {
+			const obj = await getObject(data.bucket, key);
+			const blob = new Blob([obj.body as BlobPart], { type: obj.contentType ?? 'application/octet-stream' });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = key.split('/').pop() ?? 'download';
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			URL.revokeObjectURL(url);
+		} catch (e) {
+			toast.error('Download failed', e instanceof Error ? e.message : String(e));
+		}
+	}
+
+	async function previewFile(key: string) {
+		try {
+			const obj = await getObject(data.bucket, key);
+			const blob = new Blob([obj.body as BlobPart], { type: obj.contentType ?? 'application/octet-stream' });
+			const url = URL.createObjectURL(blob);
+			window.open(url, '_blank');
+			setTimeout(() => URL.revokeObjectURL(url), 60_000);
+		} catch (e) {
+			toast.error('Preview failed', e instanceof Error ? e.message : String(e));
+		}
+	}
 
 	const fileGroups = {
 		image: ['avif', 'bmp', 'gif', 'heic', 'ico', 'jpeg', 'jpg', 'png', 'svg', 'tif', 'tiff', 'webp'],
@@ -73,7 +132,7 @@
 			<p class="page-subtitle">{totalItems} item{totalItems !== 1 ? 's' : ''}</p>
 		</div>
 		<div class="flex flex-wrap items-center gap-2">
-			<form method="POST" action="?/setCors" use:enhance>
+			<form method="POST" use:enhance={clientAction(handleSetCors, { onSuccess: () => invalidateAll() })}>
 				<Button type="submit" size="sm" variant={data.corsConfigured ? 'outline' : 'ghost'}
 					class={data.corsConfigured
 						? 'h-8 text-xs text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 dark:text-emerald-400'
@@ -86,9 +145,8 @@
 			</form>
 			<form
 				method="POST"
-				action="?/uploadObject&prefix={encodeURIComponent(data.prefix)}"
 				enctype="multipart/form-data"
-				use:enhance
+				use:enhance={clientAction(handleUpload, { onSuccess: () => invalidateAll() })}
 			>
 				<input
 					bind:this={fileInput}
@@ -109,19 +167,6 @@
 
 	{#if data.error}
 		<ErrorPanel message="Could not list objects" hint={data.error} />
-	{/if}
-
-	{#if form?.actionError}
-		<ErrorPanel message={form.actionError} />
-	{/if}
-
-	{#if form?.success}
-		<div class="flex items-center gap-2 rounded border border-emerald-500/20 bg-emerald-500/8 px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-400">
-			<svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-			</svg>
-			{form.success}
-		</div>
 	{/if}
 
 	{#if totalItems === 0 && !data.error}
@@ -189,8 +234,7 @@
 										variant="ghost"
 										size="sm"
 										class="h-7 px-2 text-xs"
-										href="/api/s3/preview?bucket={encodeURIComponent(data.bucket)}&key={encodeURIComponent(file.key)}"
-										target="_blank"
+										onclick={() => previewFile(file.key)}
 									>
 										Preview
 									</Button>
@@ -198,7 +242,7 @@
 										variant="ghost"
 										size="sm"
 										class="h-7 px-2 text-xs"
-										href="/api/s3/download?bucket={encodeURIComponent(data.bucket)}&key={encodeURIComponent(file.key)}"
+										onclick={() => downloadFile(file.key)}
 									>
 										Download
 									</Button>
@@ -230,7 +274,7 @@
 		</Dialog.Header>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (confirmDeleteKey = null)}>Cancel</Button>
-			<form method="POST" action="?/deleteObject" use:enhance={() => () => { confirmDeleteKey = null; }}>
+			<form method="POST" use:enhance={clientAction(handleDelete, { onSuccess: () => invalidateAll(), closeOnSuccess: () => (confirmDeleteKey = null) })}>
 				<input type="hidden" name="key" value={confirmDeleteKey} />
 				<Button type="submit" variant="destructive">Delete</Button>
 			</form>

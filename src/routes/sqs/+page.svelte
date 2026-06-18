@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -8,7 +9,8 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import ListToolbar from '$lib/components/ListToolbar.svelte';
-	import { toastingEnhance } from '$lib/utils/formEnhance';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { createQueue, deleteQueue } from '$lib/floci/sqs';
 
 	let { data } = $props();
 
@@ -21,6 +23,34 @@
 	const filtered = $derived(
 		data.queues.filter((q) => q.name.toLowerCase().includes(search.toLowerCase()))
 	);
+
+	function num(v: FormDataEntryValue | null): number | undefined {
+		if (v == null || v === '') return undefined;
+		const n = Number(v);
+		return Number.isFinite(n) ? n : undefined;
+	}
+
+	async function handleCreate(fd: FormData) {
+		let name = (fd.get('name') as string)?.trim();
+		if (!name) throw new Error('Queue name is required');
+		const fifo = fd.get('type') === 'fifo';
+		if (fifo && !name.endsWith('.fifo')) name = `${name}.fifo`;
+		await createQueue(name, {
+			fifo,
+			visibilityTimeout: num(fd.get('visibilityTimeout')),
+			messageRetention: num(fd.get('messageRetention')),
+			delaySeconds: num(fd.get('delaySeconds')),
+			maxMessageSizeKb: num(fd.get('maxMessageSizeKb'))
+		});
+		return { success: `Queue "${name}" created` };
+	}
+
+	async function handleDelete(fd: FormData) {
+		const url = fd.get('url') as string;
+		if (!url) throw new Error('Queue URL is required');
+		await deleteQueue(url);
+		return { success: 'Queue deleted' };
+	}
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -47,9 +77,8 @@
 	{#if showCreate}
 		<form
 			method="POST"
-			action="?/createQueue"
-			use:enhance={toastingEnhance({
-				successMessage: 'Queue created',
+			use:enhance={clientAction(handleCreate, {
+				onSuccess: () => invalidateAll(),
 				closeOnSuccess: () => { showCreate = false; isFifo = false; }
 			})}
 			class="console-panel flex flex-col gap-3 p-4"
@@ -190,9 +219,8 @@
 			</Button>
 			<form
 				method="POST"
-				action="?/deleteQueue"
-				use:enhance={toastingEnhance({
-					successMessage: 'Queue deleted',
+				use:enhance={clientAction(handleDelete, {
+					onSuccess: () => invalidateAll(),
 					closeOnSuccess: () => { confirmDeleteUrl = null; confirmDeleteName = null; }
 				})}
 			>

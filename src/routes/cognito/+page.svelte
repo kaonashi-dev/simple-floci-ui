@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -8,7 +9,8 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import ListToolbar from '$lib/components/ListToolbar.svelte';
-	import { toastingEnhance } from '$lib/utils/formEnhance';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { createUserPool, deleteUserPool } from '$lib/floci/cognito';
 	import { formatDate } from '$lib/utils/formatDate';
 
 	let { data } = $props();
@@ -20,6 +22,20 @@
 	const filtered = $derived(
 		data.pools.filter((p) => `${p.name} ${p.id}`.toLowerCase().includes(search.toLowerCase()))
 	);
+
+	async function handleCreate(fd: FormData) {
+		const name = (fd.get('name') as string)?.trim();
+		if (!name) throw new Error('Pool name is required');
+		await createUserPool(name);
+		return { success: `User pool "${name}" created` };
+	}
+
+	async function handleDelete(fd: FormData) {
+		const id = fd.get('id') as string;
+		if (!id) throw new Error('Pool ID is required');
+		await deleteUserPool(id);
+		return { success: 'User pool deleted' };
+	}
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -50,9 +66,8 @@
 	{#if showCreate}
 		<form
 			method="POST"
-			action="?/createPool"
-			use:enhance={toastingEnhance({
-				successMessage: 'User pool created',
+			use:enhance={clientAction(handleCreate, {
+				onSuccess: () => invalidateAll(),
 				closeOnSuccess: () => (showCreate = false)
 			})}
 			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
@@ -141,9 +156,8 @@
 			<Button variant="outline" onclick={() => (confirmDelete = null)}>Cancel</Button>
 			<form
 				method="POST"
-				action="?/deletePool"
-				use:enhance={toastingEnhance({
-					successMessage: 'User pool deleted',
+				use:enhance={clientAction(handleDelete, {
+					onSuccess: () => invalidateAll(),
 					closeOnSuccess: () => (confirmDelete = null)
 				})}
 			>

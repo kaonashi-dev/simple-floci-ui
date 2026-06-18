@@ -1,15 +1,28 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { putParameter } from '$lib/floci/ssm';
 	import { formatDate } from '$lib/utils/formatDate';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let revealed = $state(false);
 	const isSecure = $derived(data.parameter?.type === 'SecureString');
+
+	async function handleUpdate(fd: FormData) {
+		const value = fd.get('value') as string;
+		const type = (fd.get('type') as string) || 'String';
+		if (!value?.trim()) throw new Error('Value is required');
+		const name = data.parameter?.name;
+		if (!name) throw new Error('Parameter name unavailable');
+		await putParameter(name, value, type, true);
+		return { success: 'Parameter updated' };
+	}
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-6 animate-fade-in-up">
@@ -26,19 +39,6 @@
 
 	{#if data.error}
 		<ErrorPanel message="Could not load parameter" hint={data.error} />
-	{/if}
-
-	{#if form?.actionError}
-		<ErrorPanel message={form.actionError} />
-	{/if}
-
-	{#if form?.success}
-		<div class="flex items-center gap-2 rounded border border-emerald-500/20 bg-emerald-500/8 px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-400">
-			<svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-			</svg>
-			{form.success}
-		</div>
 	{/if}
 
 	{#if data.parameter}
@@ -89,7 +89,7 @@
 
 			<div class="border-t border-border pt-3">
 				<h3 class="mb-2 text-xs font-medium text-muted-foreground">Update Value</h3>
-				<form method="POST" action="?/updateValue" use:enhance class="space-y-2">
+				<form method="POST" use:enhance={clientAction(handleUpdate, { onSuccess: () => invalidateAll() })} class="space-y-2">
 					<input type="hidden" name="type" value={data.parameter.type} />
 					<Textarea name="value" rows={3} placeholder="New parameter value" required class="resize-none font-mono text-xs" />
 					<Button type="submit" size="sm">Update Value</Button>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Textarea } from '$lib/components/ui/textarea';
@@ -9,7 +10,8 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import ListToolbar from '$lib/components/ListToolbar.svelte';
-	import { toastingEnhance } from '$lib/utils/formEnhance';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { createSecret, deleteSecret } from '$lib/floci/secrets';
 	import { formatDate } from '$lib/utils/formatDate';
 
 	let { data } = $props();
@@ -24,6 +26,23 @@
 			`${s.name} ${s.description ?? ''}`.toLowerCase().includes(search.toLowerCase())
 		)
 	);
+
+	async function handleCreate(fd: FormData) {
+		const name = (fd.get('name') as string)?.trim();
+		const value = (fd.get('value') as string)?.trim();
+		const description = (fd.get('description') as string)?.trim() || undefined;
+		if (!name) throw new Error('Secret name is required');
+		if (!value) throw new Error('Secret value is required');
+		await createSecret(name, value, description);
+		return { success: `Secret "${name}" created` };
+	}
+
+	async function handleDelete(fd: FormData) {
+		const arn = fd.get('arn') as string;
+		if (!arn) throw new Error('ARN is required');
+		await deleteSecret(arn);
+		return { success: 'Secret deleted' };
+	}
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -50,9 +69,8 @@
 	{#if showCreate}
 		<form
 			method="POST"
-			action="?/createSecret"
-			use:enhance={toastingEnhance({
-				successMessage: 'Secret created',
+			use:enhance={clientAction(handleCreate, {
+				onSuccess: () => invalidateAll(),
 				closeOnSuccess: () => (showCreate = false)
 			})}
 			class="console-panel flex flex-col gap-3 p-4"
@@ -149,9 +167,8 @@
 			<Button variant="outline" onclick={() => { confirmDeleteArn = null; confirmDeleteName = null; }}>Cancel</Button>
 			<form
 				method="POST"
-				action="?/deleteSecret"
-				use:enhance={toastingEnhance({
-					successMessage: 'Secret deleted',
+				use:enhance={clientAction(handleDelete, {
+					onSuccess: () => invalidateAll(),
 					closeOnSuccess: () => { confirmDeleteArn = null; confirmDeleteName = null; }
 				})}
 			>

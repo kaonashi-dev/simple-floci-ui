@@ -1,10 +1,27 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { enableRule, disableRule } from '$lib/floci/eventbridge';
 
-	let { data, form } = $props();
+	let { data } = $props();
+
+	async function handleEnable(fd: FormData) {
+		const ruleName = fd.get('ruleName') as string;
+		if (!ruleName) throw new Error('Rule name required');
+		await enableRule(ruleName, data.busName);
+		return { success: `Rule ${ruleName} enabled` };
+	}
+
+	async function handleDisable(fd: FormData) {
+		const ruleName = fd.get('ruleName') as string;
+		if (!ruleName) throw new Error('Rule name required');
+		await disableRule(ruleName, data.busName);
+		return { success: `Rule ${ruleName} disabled` };
+	}
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -22,19 +39,6 @@
 
 	{#if data.error}
 		<ErrorPanel message="Could not load rules" hint={data.error} />
-	{/if}
-
-	{#if form?.actionError}
-		<ErrorPanel message={form.actionError} />
-	{/if}
-
-	{#if form?.success}
-		<div class="flex items-center gap-2 rounded border border-emerald-500/20 bg-emerald-500/8 px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-400">
-			<svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-			</svg>
-			{form.success}
-		</div>
 	{/if}
 
 	{#if data.rules.length === 0 && !data.error}
@@ -68,14 +72,14 @@
 							<td class="px-4 py-3 text-sm text-muted-foreground">{rule.description ?? '—'}</td>
 							<td class="px-4 py-3 text-right">
 								{#if rule.state === 'ENABLED'}
-									<form method="POST" action="?/disableRule" use:enhance class="inline">
+									<form method="POST" use:enhance={clientAction(handleDisable, { onSuccess: () => invalidateAll() })} class="inline">
 										<input type="hidden" name="ruleName" value={rule.name} />
 										<Button type="submit" variant="ghost" size="sm" class="h-7 px-2 text-xs text-amber-600 hover:text-amber-600 hover:bg-amber-500/10">
 											Disable
 										</Button>
 									</form>
 								{:else}
-									<form method="POST" action="?/enableRule" use:enhance class="inline">
+									<form method="POST" use:enhance={clientAction(handleEnable, { onSuccess: () => invalidateAll() })} class="inline">
 										<input type="hidden" name="ruleName" value={rule.name} />
 										<Button type="submit" variant="ghost" size="sm" class="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-600 hover:bg-emerald-500/10">
 											Enable
