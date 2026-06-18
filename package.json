@@ -9,7 +9,7 @@
 	"scripts": {
 		"dev": "vite dev --port 5975",
 		"build": "vite build",
-		"start": "node build",
+		"start": "sirv build --single --host 0.0.0.0 --port 3000",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -18,7 +18,7 @@
 	"devDependencies": {
 		"@internationalized/date": "^3.12.0",
 		"@lucide/svelte": "^1.14.0",
-		"@sveltejs/adapter-node": "^5.5.5",
+		"@sveltejs/adapter-static": "^3.0.0",
 		"@sveltejs/kit": "^2.57.0",
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
 		"@tailwindcss/vite": "^4.2.2",
@@ -49,6 +49,7 @@
 		"@aws-sdk/lib-dynamodb": "^3.1045.0",
 		"bits-ui": "^2.18.1",
 		"clsx": "^2.1.1",
+		"sirv-cli": "^3.0.0",
 		"tailwind-merge": "^3.5.0"
 	}
 }
