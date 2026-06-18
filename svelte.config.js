@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-node';
+import adapter from '@sveltejs/adapter-static';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -7,7 +7,9 @@ const config = {
 		runes: ({ filename }) => (filename.split(/[/\\]/).includes('node_modules') ? undefined : true)
 	},
 	kit: {
-		adapter: adapter(),
+		// The whole app renders in the browser (ssr = false), so we ship a pure
+		// static SPA: a fallback shell + hashed client assets, hostable anywhere.
+		adapter: adapter({ fallback: 'index.html' }),
 		alias: {
 			'$lib': 'src/lib',
 			'$lib/*': 'src/lib/*'
