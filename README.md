@@ -7,7 +7,7 @@ The UI is **browser-direct**: it can be hosted once (e.g. on Railway) and every 
 ## Stack
 
 - [SvelteKit 5](https://svelte.dev) + TypeScript (client-rendered SPA, `ssr = false`)
-- [`@sveltejs/adapter-node`](https://svelte.dev/docs/kit/adapter-node) — the host only serves static assets
+- [`@sveltejs/adapter-static`](https://svelte.dev/docs/kit/adapter-static) — builds a pure static SPA; the host just serves files
 - [Tailwind CSS v4](https://tailwindcss.com) + [bits-ui](https://bits-ui.com)
 - [AWS SDK v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/) — runs **in the browser**
 - [Bun](https://bun.sh) as the package manager and runtime
@@ -55,8 +55,8 @@ for a plain local-only setup). The header shows a green indicator when connected
 The host only serves the built UI — no AWS/Floci config is required on it.
 
 1. Create a Railway project from this repo. Railway uses [`railway.json`](./railway.json):
-   it builds with `bun run build` and starts with `bun ./build/index.js`. `PORT` is
-   injected automatically.
+   it builds with `bun run build` (a static `build/` folder) and serves it with `sirv`
+   on the injected `PORT`.
 2. Deploy. Note your app URL, e.g. `https://your-app.up.railway.app`.
 
 ### What each developer does (one-time)
@@ -123,6 +123,6 @@ The dashboard at `/` aggregates resource counts from every service in parallel.
 ```sh
 bun run build      # production build
 bun run preview    # preview production build
-bun run start      # run the production server locally (node build)
+bun run start      # serve the static build locally (sirv on :3000)
 bun run check      # type-check with svelte-check
 ```
