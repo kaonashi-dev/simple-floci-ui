@@ -47,8 +47,7 @@ bun run dev
 ```
 
 Open **http://localhost:5975**. Go to **Settings** and point the endpoint at your local
-instance (default: `https://localhost.localstack.cloud:4566`, or `http://localhost:4566`
-for a plain local-only setup). The header shows a green indicator when connected.
+instance (default: `http://localhost:4567`). The header shows a green indicator when connected.
 
 ## Deploy the UI to Railway
 
@@ -65,9 +64,8 @@ Because the browser (on a public HTTPS page) calls a service on `localhost`, two
 rules apply — both solved by LocalStack's built-in trusted-HTTPS loopback domain plus a
 single CORS env var:
 
-1. **Use the HTTPS loopback endpoint** so Safari/Chrome don't block mixed content:
-   `https://localhost.localstack.cloud:4566` (resolves to `127.0.0.1`, valid certificate).
-   This is the default in Settings.
+1. **Use the default endpoint** `http://localhost:4567` (Floci's default port).
+   If you're using LocalStack, point it to `http://localhost:4566` in Settings instead.
 2. **Allow the hosted origin** on your LocalStack so CORS/Private-Network checks pass:
 
    ```sh
