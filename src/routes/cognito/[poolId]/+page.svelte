@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -7,10 +8,21 @@
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import { clientAction } from '$lib/utils/clientAction';
+	import {
+		createUser,
+		updateUserAttributes,
+		deleteUser,
+		enableUser,
+		disableUser,
+		setUserPassword,
+		createGroup,
+		deleteGroup
+	} from '$lib/floci/cognito';
 	import { formatDate } from '$lib/utils/formatDate';
 	import { cn } from '$lib/utils';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	type Tab = 'users' | 'groups';
 	let activeTab: Tab = $state('users');
@@ -20,6 +32,65 @@
 	let confirmDeleteGroup: string | null = $state(null);
 	let editUser: { username: string; email: string } | null = $state(null);
 	let setPasswordUser: string | null = $state(null);
+
+	async function handleCreateUser(fd: FormData) {
+		const username = (fd.get('username') as string)?.trim();
+		const email = (fd.get('email') as string)?.trim();
+		const tempPassword = (fd.get('tempPassword') as string)?.trim();
+		if (!username || !email || !tempPassword)
+			throw new Error('Username, email and password are required');
+		await createUser(data.poolId, username, email, tempPassword);
+		return { success: `User ${username} created` };
+	}
+
+	async function handleUpdateUser(fd: FormData) {
+		const username = fd.get('username') as string;
+		const email = (fd.get('email') as string)?.trim();
+		if (!email) throw new Error('Email is required');
+		await updateUserAttributes(data.poolId, username, { email });
+		return { success: `User ${username} updated` };
+	}
+
+	async function handleDeleteUser(fd: FormData) {
+		const username = fd.get('username') as string;
+		await deleteUser(data.poolId, username);
+		return { success: `User ${username} deleted` };
+	}
+
+	async function handleEnableUser(fd: FormData) {
+		const username = fd.get('username') as string;
+		await enableUser(data.poolId, username);
+		return { success: `User ${username} enabled` };
+	}
+
+	async function handleDisableUser(fd: FormData) {
+		const username = fd.get('username') as string;
+		await disableUser(data.poolId, username);
+		return { success: `User ${username} disabled` };
+	}
+
+	async function handleSetPassword(fd: FormData) {
+		const username = fd.get('username') as string;
+		const password = (fd.get('password') as string)?.trim();
+		const permanent = fd.get('permanent') === 'true';
+		if (!password) throw new Error('Password is required');
+		await setUserPassword(data.poolId, username, password, permanent);
+		return { success: `Password updated for ${username}` };
+	}
+
+	async function handleCreateGroup(fd: FormData) {
+		const name = (fd.get('name') as string)?.trim();
+		const description = (fd.get('description') as string)?.trim() || undefined;
+		if (!name) throw new Error('Group name is required');
+		await createGroup(data.poolId, name, description);
+		return { success: `Group ${name} created` };
+	}
+
+	async function handleDeleteGroup(fd: FormData) {
+		const name = fd.get('name') as string;
+		await deleteGroup(data.poolId, name);
+		return { success: `Group ${name} deleted` };
+	}
 
 	function userStatusClass(status?: string) {
 		if (status === 'CONFIRMED') return 'text-emerald-600 border-emerald-500/30 bg-emerald-500/10 dark:text-emerald-400';
@@ -56,19 +127,6 @@
 
 	{#if data.error}
 		<ErrorPanel message="Could not load user pool" hint={data.error} />
-	{/if}
-
-	{#if form?.actionError}
-		<ErrorPanel message={form.actionError} />
-	{/if}
-
-	{#if form?.success}
-		<div class="flex items-center gap-2 rounded border border-emerald-500/20 bg-emerald-500/8 px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-400">
-			<svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-			</svg>
-			{form.success}
-		</div>
 	{/if}
 
 	<!-- Pool meta -->
@@ -127,8 +185,10 @@
 			{#if showCreateUser}
 				<form
 					method="POST"
-					action="?/createUser"
-					use:enhance={() => async ({ update }) => { showCreateUser = false; await update(); }}
+					use:enhance={clientAction(handleCreateUser, {
+						onSuccess: () => invalidateAll(),
+						closeOnSuccess: () => (showCreateUser = false)
+					})}
 					class="console-panel grid grid-cols-1 items-end gap-3 p-4 md:grid-cols-3"
 				>
 					<div class="space-y-1.5">
@@ -203,12 +263,12 @@
 												Set PWD
 											</Button>
 											{#if user.enabled}
-												<form method="POST" action="?/disableUser" use:enhance>
+												<form method="POST" use:enhance={clientAction(handleDisableUser, { onSuccess: () => invalidateAll() })}>
 													<input type="hidden" name="username" value={user.username} />
 													<Button variant="ghost" size="sm" class="h-7 px-2 text-xs" type="submit">Disable</Button>
 												</form>
 											{:else}
-												<form method="POST" action="?/enableUser" use:enhance>
+												<form method="POST" use:enhance={clientAction(handleEnableUser, { onSuccess: () => invalidateAll() })}>
 													<input type="hidden" name="username" value={user.username} />
 													<Button variant="ghost" size="sm" class="h-7 px-2 text-xs" type="submit">Enable</Button>
 												</form>
@@ -248,8 +308,10 @@
 			{#if showCreateGroup}
 				<form
 					method="POST"
-					action="?/createGroup"
-					use:enhance={() => async ({ update }) => { showCreateGroup = false; await update(); }}
+					use:enhance={clientAction(handleCreateGroup, {
+						onSuccess: () => invalidateAll(),
+						closeOnSuccess: () => (showCreateGroup = false)
+					})}
 					class="console-panel grid grid-cols-1 items-end gap-3 p-4 md:grid-cols-2"
 				>
 					<div class="space-y-1.5">
@@ -317,8 +379,10 @@
 		</Dialog.Header>
 		<form
 			method="POST"
-			action="?/setPassword"
-			use:enhance={() => async ({ update }) => { setPasswordUser = null; await update(); }}
+			use:enhance={clientAction(handleSetPassword, {
+				onSuccess: () => invalidateAll(),
+				closeOnSuccess: () => (setPasswordUser = null)
+			})}
 			class="space-y-4 pt-2"
 		>
 			<input type="hidden" name="username" value={setPasswordUser} />
@@ -344,8 +408,10 @@
 		</Dialog.Header>
 		<form
 			method="POST"
-			action="?/updateUser"
-			use:enhance={() => async ({ update }) => { editUser = null; await update(); }}
+			use:enhance={clientAction(handleUpdateUser, {
+				onSuccess: () => invalidateAll(),
+				closeOnSuccess: () => (editUser = null)
+			})}
 			class="space-y-4 pt-2"
 		>
 			<input type="hidden" name="username" value={editUser?.username} />
@@ -370,7 +436,7 @@
 		</Dialog.Header>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (confirmDeleteUser = null)}>Cancel</Button>
-			<form method="POST" action="?/deleteUser" use:enhance={() => async ({ update }) => { confirmDeleteUser = null; await update(); }}>
+			<form method="POST" use:enhance={clientAction(handleDeleteUser, { onSuccess: () => invalidateAll(), closeOnSuccess: () => (confirmDeleteUser = null) })}>
 				<input type="hidden" name="username" value={confirmDeleteUser} />
 				<Button type="submit" variant="destructive">Delete User</Button>
 			</form>
@@ -387,7 +453,7 @@
 		</Dialog.Header>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (confirmDeleteGroup = null)}>Cancel</Button>
-			<form method="POST" action="?/deleteGroup" use:enhance={() => async ({ update }) => { confirmDeleteGroup = null; await update(); }}>
+			<form method="POST" use:enhance={clientAction(handleDeleteGroup, { onSuccess: () => invalidateAll(), closeOnSuccess: () => (confirmDeleteGroup = null) })}>
 				<input type="hidden" name="name" value={confirmDeleteGroup} />
 				<Button type="submit" variant="destructive">Delete Group</Button>
 			</form>

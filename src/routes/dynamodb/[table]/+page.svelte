@@ -13,11 +13,12 @@
 	import JsonViewer from '$lib/components/JsonViewer.svelte';
 	import { formatDate } from '$lib/utils/formatDate';
 	import { formatBytes } from '$lib/utils/formatBytes';
-	import { toastingEnhance } from '$lib/utils/formEnhance';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { scanTable } from '$lib/floci/dynamodb';
 	import { untrack } from 'svelte';
 	import type { DynamoItem } from '$lib/types/dynamodb';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let items: DynamoItem[] = $state([]);
 	let lastEvaluatedKey: Record<string, unknown> | undefined = $state(undefined);
@@ -42,14 +43,25 @@
 		scannedCount = data.scan?.scannedCount ?? 0;
 	});
 
-	$effect(() => {
-		if (form?.action === 'loadMore' && form.scan) {
-			const next = form.scan as { items: DynamoItem[]; lastEvaluatedKey?: Record<string, unknown>; scannedCount?: number };
-			items = [...untrack(() => items), ...next.items];
-			lastEvaluatedKey = next.lastEvaluatedKey;
-			scannedCount = untrack(() => scannedCount) + (next.scannedCount ?? 0);
-		}
-	});
+	function num(v: FormDataEntryValue | null): number | undefined {
+		if (v == null || v === '') return undefined;
+		const n = Number(v);
+		return Number.isFinite(n) ? n : undefined;
+	}
+
+	async function handleLoadMore(fd: FormData) {
+		const lastKeyRaw = fd.get('lastKey') as string;
+		const lastKey = lastKeyRaw ? JSON.parse(lastKeyRaw) : undefined;
+		const fa = (fd.get('fa') as string) || undefined;
+		const fv = (fd.get('fv') as string) || undefined;
+		const scan = await scanTable(data.name, {
+			limit: num(fd.get('limit')) ?? 50,
+			indexName: (fd.get('index') as string) || undefined,
+			lastKey,
+			filter: fa && fv ? { attribute: fa, value: fv } : undefined
+		});
+		return { scan };
+	}
 
 	const allKeys = $derived([...new Set(items.flatMap(i => Object.keys(i)))].sort());
 
@@ -102,10 +114,6 @@
 
 	{#if data.error}
 		<ErrorPanel message="Could not load table" hint={data.error} />
-	{/if}
-
-	{#if form?.actionError}
-		<ErrorPanel message={form.actionError} />
 	{/if}
 
 	{#if data.detail}
@@ -317,7 +325,14 @@
 			</div>
 
 			{#if lastEvaluatedKey}
-				<form method="POST" action="?/loadMore" use:enhance={toastingEnhance()}>
+				<form method="POST" use:enhance={clientAction(handleLoadMore, {
+					onSuccess: (d) => {
+						const next = d.scan as { items: DynamoItem[]; lastEvaluatedKey?: Record<string, unknown>; scannedCount?: number };
+						items = [...items, ...next.items];
+						lastEvaluatedKey = next.lastEvaluatedKey;
+						scannedCount = scannedCount + (next.scannedCount ?? 0);
+					}
+				})}>
 					<input type="hidden" name="lastKey" value={JSON.stringify(lastEvaluatedKey)} />
 					<input type="hidden" name="limit" value={limit} />
 					<input type="hidden" name="index" value={indexName} />

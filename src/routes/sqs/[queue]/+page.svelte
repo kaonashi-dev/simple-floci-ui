@@ -11,10 +11,18 @@
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import JsonViewer from '$lib/components/JsonViewer.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
-	import { toastingEnhance } from '$lib/utils/formEnhance';
-	import type { SqsMessage } from '$lib/types/sqs';
+	import { clientAction } from '$lib/utils/clientAction';
+	import {
+		getQueueUrl,
+		sendMessage,
+		receiveMessages,
+		deleteMessage,
+		purgeQueue
+	} from '$lib/floci/sqs';
+	import { recordSent, recordReceived, recordDeleted } from '$lib/floci/sqs-history';
+	import type { SqsMessage, SqsMessageAttributeInput } from '$lib/types/sqs';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let messages: SqsMessage[] = $state([]);
 	let showPurgeConfirm = $state(false);
@@ -27,11 +35,68 @@
 	let receiveVisibility = $state(30);
 	let receiveWait = $state(1);
 
-	$effect(() => {
-		if (form?.action === 'receive' && form.messages) {
-			messages = form.messages as SqsMessage[];
+	function num(v: FormDataEntryValue | null): number | undefined {
+		if (v == null || v === '') return undefined;
+		const n = Number(v);
+		return Number.isFinite(n) ? n : undefined;
+	}
+
+	function parseAttributes(raw: FormDataEntryValue | null): SqsMessageAttributeInput[] {
+		if (!raw) return [];
+		try {
+			const parsed = JSON.parse(String(raw));
+			if (!Array.isArray(parsed)) return [];
+			return parsed
+				.filter((a: unknown): a is SqsMessageAttributeInput =>
+					typeof a === 'object' && a != null && typeof (a as { name: unknown }).name === 'string'
+				)
+				.map((a) => ({ name: a.name, value: a.value, type: a.type }));
+		} catch {
+			return [];
 		}
-	});
+	}
+
+	async function handleSend(fd: FormData) {
+		const body = fd.get('body') as string;
+		if (!body?.trim()) throw new Error('Message body is required');
+		const url = await getQueueUrl(data.name);
+		const res = await sendMessage(url, body, {
+			delaySeconds: data.isFifo ? undefined : num(fd.get('delaySeconds')),
+			messageGroupId: data.isFifo
+				? ((fd.get('messageGroupId') as string) || 'default').trim()
+				: undefined,
+			messageDeduplicationId: data.isFifo
+				? (fd.get('messageDeduplicationId') as string)?.trim() || undefined
+				: undefined,
+			attributes: parseAttributes(fd.get('attributes'))
+		});
+		recordSent(data.name, res.messageId, body);
+		return { success: `Message sent (${res.messageId ?? 'ok'})` };
+	}
+
+	async function handleReceive(fd: FormData) {
+		const url = await getQueueUrl(data.name);
+		const received = await receiveMessages(url, {
+			maxMessages: num(fd.get('maxMessages')),
+			visibilityTimeout: num(fd.get('visibilityTimeout')),
+			waitTimeSeconds: num(fd.get('waitTimeSeconds'))
+		});
+		if (received.length > 0) recordReceived(data.name, received);
+		return { messages: received };
+	}
+
+	async function handleDeleteMessage(fd: FormData) {
+		const url = await getQueueUrl(data.name);
+		await deleteMessage(url, fd.get('receiptHandle') as string);
+		recordDeleted(data.name);
+		return { success: 'Message deleted' };
+	}
+
+	async function handlePurge() {
+		const url = await getQueueUrl(data.name);
+		await purgeQueue(url);
+		return { success: 'Queue purged' };
+	}
 
 	const attrEntries = $derived(
 		Object.entries(data.attributes ?? {}).sort(([a], [b]) => a.localeCompare(b))
@@ -74,10 +139,6 @@
 		<ErrorPanel message="Could not load queue" hint={data.error} />
 	{/if}
 
-	{#if form?.actionError}
-		<ErrorPanel message={form.actionError} />
-	{/if}
-
 	{#if data.url}
 		<div class="flex items-center gap-2 rounded border border-border bg-muted/30 px-3 py-2">
 			<code class="flex-1 truncate font-mono text-xs text-muted-foreground">{data.url}</code>
@@ -91,8 +152,7 @@
 			<h2 class="text-sm font-semibold">Send Message</h2>
 			<form
 				method="POST"
-				action="?/sendMessage"
-				use:enhance={toastingEnhance()}
+				use:enhance={clientAction(handleSend)}
 				class="space-y-2.5"
 			>
 				<div class="space-y-1.5">
@@ -217,8 +277,9 @@
 			</div>
 			<form
 				method="POST"
-				action="?/receiveMessages"
-				use:enhance={toastingEnhance()}
+				use:enhance={clientAction(handleReceive, {
+					onSuccess: (d) => (messages = d.messages as SqsMessage[])
+				})}
 				class="flex flex-wrap items-end gap-2"
 			>
 				<div class="space-y-1">
@@ -268,8 +329,7 @@
 								{#if msg.receiptHandle}
 									<form
 										method="POST"
-										action="?/deleteMessage"
-										use:enhance={toastingEnhance({
+										use:enhance={clientAction(handleDeleteMessage, {
 											onSuccess: () => {
 												messages = messages.filter((m) => m.messageId !== msg.messageId);
 											}
@@ -333,8 +393,7 @@
 			<Button variant="outline" onclick={() => (showPurgeConfirm = false)}>Cancel</Button>
 			<form
 				method="POST"
-				action="?/purgeQueue"
-				use:enhance={toastingEnhance({
+				use:enhance={clientAction(handlePurge, {
 					closeOnSuccess: () => { showPurgeConfirm = false; messages = []; }
 				})}
 			>

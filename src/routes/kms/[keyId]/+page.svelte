@@ -1,20 +1,75 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import { clientAction } from '$lib/utils/clientAction';
+	import {
+		createAlias,
+		deleteAlias,
+		scheduleKeyDeletion,
+		cancelKeyDeletion,
+		enableKey,
+		disableKey,
+		enableKeyRotation,
+		disableKeyRotation
+	} from '$lib/floci/kms';
 	import { formatDate } from '$lib/utils/formatDate';
 	import { cn } from '$lib/utils';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let showScheduleDelete = $state(false);
 	let scheduleDays = $state(7);
 	let showAddAlias = $state(false);
 	let confirmDeleteAlias: string | null = $state(null);
+
+	async function handleCreateAlias(fd: FormData) {
+		const name = (fd.get('name') as string)?.trim();
+		if (!name) throw new Error('Alias name is required');
+		await createAlias(name, data.keyId);
+		return { success: `Alias ${name} created` };
+	}
+
+	async function handleDeleteAlias(fd: FormData) {
+		await deleteAlias(fd.get('name') as string);
+		return { success: 'Alias removed' };
+	}
+
+	async function handleScheduleDelete(fd: FormData) {
+		const days = parseInt(fd.get('days') as string, 10) || 7;
+		await scheduleKeyDeletion(data.keyId, days);
+		return { success: `Deletion scheduled in ${days} days` };
+	}
+
+	async function handleCancelDelete() {
+		await cancelKeyDeletion(data.keyId);
+		return { success: 'Scheduled deletion canceled' };
+	}
+
+	async function handleEnable() {
+		await enableKey(data.keyId);
+		return { success: 'Key enabled' };
+	}
+
+	async function handleDisable() {
+		await disableKey(data.keyId);
+		return { success: 'Key disabled' };
+	}
+
+	async function handleEnableRotation() {
+		await enableKeyRotation(data.keyId);
+		return { success: 'Rotation enabled' };
+	}
+
+	async function handleDisableRotation() {
+		await disableKeyRotation(data.keyId);
+		return { success: 'Rotation disabled' };
+	}
 
 	function stateClass(state?: string) {
 		if (state === 'Enabled') return 'text-emerald-600 border-emerald-500/30 bg-emerald-500/10 dark:text-emerald-400';
@@ -56,10 +111,6 @@
 		<ErrorPanel message="Could not load key" hint={data.error} />
 	{/if}
 
-	{#if form?.actionError}
-		<ErrorPanel message={form.actionError} />
-	{/if}
-
 	{#if data.key}
 		<!-- Metadata grid -->
 		<div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
@@ -99,8 +150,10 @@
 			{#if showAddAlias}
 				<form
 					method="POST"
-					action="?/createAlias"
-					use:enhance={() => () => { showAddAlias = false; }}
+					use:enhance={clientAction(handleCreateAlias, {
+						onSuccess: () => invalidateAll(),
+						closeOnSuccess: () => (showAddAlias = false)
+					})}
 					class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
 				>
 					<div class="flex-1 space-y-1.5">
@@ -157,11 +210,11 @@
 				</p>
 			</div>
 			{#if data.key.rotationEnabled}
-				<form method="POST" action="?/disableRotation" use:enhance>
+				<form method="POST" use:enhance={clientAction(handleDisableRotation, { onSuccess: () => invalidateAll() })}>
 					<Button type="submit" variant="outline" size="sm">Disable Rotation</Button>
 				</form>
 			{:else}
-				<form method="POST" action="?/enableRotation" use:enhance>
+				<form method="POST" use:enhance={clientAction(handleEnableRotation, { onSuccess: () => invalidateAll() })}>
 					<Button type="submit" variant="outline" size="sm">Enable Rotation</Button>
 				</form>
 			{/if}
@@ -174,19 +227,19 @@
 			<p class="text-sm font-medium">Danger Zone</p>
 			<div class="flex flex-wrap items-center gap-2">
 				{#if data.key.keyState === 'Enabled'}
-					<form method="POST" action="?/disable" use:enhance>
+					<form method="POST" use:enhance={clientAction(handleDisable, { onSuccess: () => invalidateAll() })}>
 						<Button type="submit" variant="outline" size="sm" class="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive">
 							Disable Key
 						</Button>
 					</form>
 				{:else if data.key.keyState === 'Disabled'}
-					<form method="POST" action="?/enable" use:enhance>
+					<form method="POST" use:enhance={clientAction(handleEnable, { onSuccess: () => invalidateAll() })}>
 						<Button type="submit" variant="outline" size="sm">Enable Key</Button>
 					</form>
 				{/if}
 
 				{#if data.key.keyState === 'PendingDeletion'}
-					<form method="POST" action="?/cancelDelete" use:enhance>
+					<form method="POST" use:enhance={clientAction(handleCancelDelete, { onSuccess: () => invalidateAll() })}>
 						<Button type="submit" variant="outline" size="sm">Cancel Scheduled Deletion</Button>
 					</form>
 					{#if data.key.deletionDate}
@@ -226,7 +279,7 @@
 		</div>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (showScheduleDelete = false)}>Cancel</Button>
-			<form method="POST" action="?/scheduleDelete" use:enhance={() => () => { showScheduleDelete = false; }}>
+			<form method="POST" use:enhance={clientAction(handleScheduleDelete, { onSuccess: () => invalidateAll(), closeOnSuccess: () => (showScheduleDelete = false) })}>
 				<input type="hidden" name="days" value={scheduleDays} />
 				<Button type="submit" variant="destructive">Schedule Deletion</Button>
 			</form>
@@ -246,7 +299,7 @@
 		</Dialog.Header>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (confirmDeleteAlias = null)}>Cancel</Button>
-			<form method="POST" action="?/deleteAlias" use:enhance={() => () => { confirmDeleteAlias = null; }}>
+			<form method="POST" use:enhance={clientAction(handleDeleteAlias, { onSuccess: () => invalidateAll(), closeOnSuccess: () => (confirmDeleteAlias = null) })}>
 				<input type="hidden" name="name" value={confirmDeleteAlias} />
 				<Button type="submit" variant="destructive">Remove Alias</Button>
 			</form>

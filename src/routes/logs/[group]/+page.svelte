@@ -4,19 +4,22 @@
 	import { Input } from '$lib/components/ui/input';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { filterLogEvents } from '$lib/floci/logs';
 	import { formatDate } from '$lib/utils/formatDate';
 	import { formatBytes } from '$lib/utils/formatBytes';
 	import type { LogEvent } from '$lib/types/logs';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let filteredEvents: LogEvent[] = $state([]);
+	let hasFiltered = $state(false);
 
-	$effect(() => {
-		if (form?.action === 'filter' && form.events) {
-			filteredEvents = form.events as LogEvent[];
-		}
-	});
+	async function handleFilter(fd: FormData) {
+		const pattern = (fd.get('pattern') as string)?.trim() || '';
+		const events = await filterLogEvents(data.groupName, pattern);
+		return { events };
+	}
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -36,12 +39,17 @@
 		<ErrorPanel message="Could not load log streams" hint={data.error} />
 	{/if}
 
-	{#if form?.actionError}
-		<ErrorPanel message={form.actionError} />
-	{/if}
-
 	<!-- Filter bar -->
-	<form method="POST" action="?/filter" use:enhance class="console-panel flex gap-2 p-3 items-end">
+	<form
+		method="POST"
+		use:enhance={clientAction(handleFilter, {
+			onSuccess: (d) => {
+				filteredEvents = d.events as LogEvent[];
+				hasFiltered = true;
+			}
+		})}
+		class="console-panel flex gap-2 p-3 items-end"
+	>
 		<div class="flex-1 space-y-1.5">
 			<label for="filter-pattern" class="text-xs text-muted-foreground">Filter pattern</label>
 			<Input id="filter-pattern" name="pattern" placeholder={"ERROR or { $.level = \"error\" }"} class="h-8 text-sm font-mono" />
@@ -62,7 +70,7 @@
 				{/each}
 			</div>
 		</div>
-	{:else if form?.action === 'filter'}
+	{:else if hasFiltered}
 		<p class="text-sm text-muted-foreground">No events matched the filter.</p>
 	{/if}
 

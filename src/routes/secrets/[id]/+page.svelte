@@ -1,15 +1,26 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
-	import { Label } from '$lib/components/ui/label';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { updateSecretValue } from '$lib/floci/secrets';
 	import { formatDate } from '$lib/utils/formatDate';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let revealed = $state(false);
+
+	async function handleUpdate(fd: FormData) {
+		const value = fd.get('value') as string;
+		if (!value?.trim()) throw new Error('Value is required');
+		const arn = data.secret?.arn;
+		if (!arn) throw new Error('Secret ARN unavailable');
+		await updateSecretValue(arn, value);
+		return { success: 'Secret value updated' };
+	}
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-6 animate-fade-in-up">
@@ -26,19 +37,6 @@
 
 	{#if data.error}
 		<ErrorPanel message="Could not load secret" hint={data.error} />
-	{/if}
-
-	{#if form?.actionError}
-		<ErrorPanel message={form.actionError} />
-	{/if}
-
-	{#if form?.success}
-		<div class="flex items-center gap-2 rounded border border-emerald-500/20 bg-emerald-500/8 px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-400">
-			<svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-			</svg>
-			{form.success}
-		</div>
 	{/if}
 
 	{#if data.secret}
@@ -83,7 +81,7 @@
 
 			<div class="border-t border-border pt-3">
 				<h3 class="mb-2 text-xs font-medium text-muted-foreground">Update Value</h3>
-				<form method="POST" action="?/updateValue" use:enhance class="space-y-2">
+				<form method="POST" use:enhance={clientAction(handleUpdate, { onSuccess: () => invalidateAll() })} class="space-y-2">
 					<Textarea name="value" rows={3} placeholder="New secret value" required class="resize-none font-mono text-xs" />
 					<Button type="submit" size="sm">Update Value</Button>
 				</form>

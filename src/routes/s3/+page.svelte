@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -7,7 +8,8 @@
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ListToolbar from '$lib/components/ListToolbar.svelte';
-	import { toastingEnhance } from '$lib/utils/formEnhance';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { createBucket, deleteBucket } from '$lib/floci/s3';
 	import { formatDate } from '$lib/utils/formatDate';
 
 	let { data } = $props();
@@ -19,6 +21,20 @@
 	const filtered = $derived(
 		data.buckets.filter((b) => b.name.toLowerCase().includes(search.toLowerCase()))
 	);
+
+	async function handleCreate(fd: FormData) {
+		const name = (fd.get('name') as string)?.trim();
+		if (!name) throw new Error('Bucket name is required');
+		await createBucket(name);
+		return { success: `Bucket "${name}" created` };
+	}
+
+	async function handleDelete(fd: FormData) {
+		const name = fd.get('name') as string;
+		if (!name) throw new Error('Bucket name is required');
+		await deleteBucket(name);
+		return { success: `Bucket "${name}" deleted` };
+	}
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-5 animate-fade-in-up">
@@ -45,9 +61,8 @@
 	{#if showCreate}
 		<form
 			method="POST"
-			action="?/createBucket"
-			use:enhance={toastingEnhance({
-				successMessage: 'Bucket created',
+			use:enhance={clientAction(handleCreate, {
+				onSuccess: () => invalidateAll(),
 				closeOnSuccess: () => (showCreate = false)
 			})}
 			class="console-panel flex flex-col gap-3 p-4 sm:flex-row sm:items-end"
@@ -128,9 +143,8 @@
 			<Button variant="outline" onclick={() => (confirmDeleteName = null)}>Cancel</Button>
 			<form
 				method="POST"
-				action="?/deleteBucket"
-				use:enhance={toastingEnhance({
-					successMessage: 'Bucket deleted',
+				use:enhance={clientAction(handleDelete, {
+					onSuccess: () => invalidateAll(),
 					closeOnSuccess: () => (confirmDeleteName = null)
 				})}
 			>

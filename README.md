@@ -2,63 +2,93 @@
 
 A local AWS services dashboard for the Floci project. Browse and inspect resources across 13 AWS services running in your local environment (LocalStack or similar) — queues, buckets, tables, functions, logs, secrets, and more — from a single UI with light and dark themes.
 
+The UI is **browser-direct**: it can be hosted once (e.g. on Railway) and every developer's browser talks straight to *their own* local Floci/LocalStack instance — much like the Forest Admin model. Nothing about your local stack is sent to the host.
+
 ## Stack
 
-- [SvelteKit 5](https://svelte.dev) + TypeScript
-- [Tailwind CSS v4](https://tailwindcss.com)
-- [bits-ui](https://bits-ui.com) for headless UI primitives
-- [AWS SDK v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/)
+- [SvelteKit 5](https://svelte.dev) + TypeScript (client-rendered SPA, `ssr = false`)
+- [`@sveltejs/adapter-node`](https://svelte.dev/docs/kit/adapter-node) — the host only serves static assets
+- [Tailwind CSS v4](https://tailwindcss.com) + [bits-ui](https://bits-ui.com)
+- [AWS SDK v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/) — runs **in the browser**
 - [Bun](https://bun.sh) as the package manager and runtime
 
-## Prerequisites
+## How it works
 
-- **[Bun](https://bun.sh)** — runtime and package manager
+```
+┌─────────────────┐         serves static UI          ┌──────────────────────┐
+│  Hosted UI      │ ───────────────────────────────▶  │  Developer's browser │
+│  (Railway, etc) │                                    │                      │
+└─────────────────┘                                    │   AWS SDK v3 calls   │
+                                                        └──────────┬───────────┘
+                                                                   │ direct
+                                                                   ▼
+                                                     ┌─────────────────────────┐
+                                                     │  Local Floci/LocalStack  │
+                                                     │  (this dev's machine)    │
+                                                     └─────────────────────────┘
+```
 
-  ```sh
-  curl -fsSL https://bun.sh/install | bash
-  ```
+The hosted server never reaches your machine — it can't, and doesn't need to. All
+Floci/AWS calls happen in your browser, against the endpoint you set in **Settings**
+(stored per-browser in `localStorage`). SQS message history is likewise stored locally
+in your browser.
 
-- **A local AWS endpoint** — designed for [LocalStack](https://localstack.cloud) or any compatible emulator. Start it before running the app:
+## Local development
 
-  ```sh
-  # with Docker
-  docker run --rm -p 4566:4566 localstack/localstack
-
-  # or with the LocalStack CLI
-  localstack start
-  ```
-
-## Getting started
+Prerequisites: [Bun](https://bun.sh) and a local AWS endpoint ([LocalStack](https://localstack.cloud)).
 
 ```sh
-git clone <repo-url>
-cd floci-ui-explorer
+# start a local Floci/LocalStack
+docker run --rm -p 4566:4566 localstack/localstack
 
-cp .env.example .env   # defaults point to localhost:4566, edit if needed
+# run the UI
 bun install
 bun run dev
 ```
 
-Open **http://localhost:5975**. The header shows a green indicator when the app can reach your local endpoint.
+Open **http://localhost:5975**. Go to **Settings** and point the endpoint at your local
+instance (default: `https://localhost.localstack.cloud:4566`, or `http://localhost:4566`
+for a plain local-only setup). The header shows a green indicator when connected.
 
-## Configuration
+## Deploy the UI to Railway
 
-All configuration lives in `.env`:
+The host only serves the built UI — no AWS/Floci config is required on it.
 
-| Variable | Default | Description |
-|---|---|---|
-| `AWS_ENDPOINT_URL` | `http://localhost:4566` | Local AWS endpoint |
-| `AWS_REGION` | `us-east-1` | AWS region |
-| `AWS_ACCESS_KEY_ID` | `test` | Any value works for LocalStack |
-| `AWS_SECRET_ACCESS_KEY` | `test` | Any value works for LocalStack |
+1. Create a Railway project from this repo. Railway uses [`railway.json`](./railway.json):
+   it builds with `bun run build` and starts with `bun ./build/index.js`. `PORT` is
+   injected automatically.
+2. Deploy. Note your app URL, e.g. `https://your-app.up.railway.app`.
 
-The defaults in `.env.example` work out of the box with a standard LocalStack setup.
+### What each developer does (one-time)
+
+Because the browser (on a public HTTPS page) calls a service on `localhost`, two browser
+rules apply — both solved by LocalStack's built-in trusted-HTTPS loopback domain plus a
+single CORS env var:
+
+1. **Use the HTTPS loopback endpoint** so Safari/Chrome don't block mixed content:
+   `https://localhost.localstack.cloud:4566` (resolves to `127.0.0.1`, valid certificate).
+   This is the default in Settings.
+2. **Allow the hosted origin** on your LocalStack so CORS/Private-Network checks pass:
+
+   ```sh
+   EXTRA_CORS_ALLOWED_ORIGINS=https://your-app.up.railway.app \
+     docker run --rm -p 4566:4566 \
+     -e EXTRA_CORS_ALLOWED_ORIGINS=https://your-app.up.railway.app \
+     localstack/localstack
+   ```
+
+Then open the hosted URL, confirm/adjust the endpoint in **Settings → Save & test**, and
+the green indicator should appear. Each developer's session uses their own machine.
+
+> Browser support: works in Chrome, Edge, Firefox and Safari via the HTTPS loopback
+> domain. If a stricter setup still trips Chrome's Private Network Access, run a small
+> local TLS/CORS proxy (e.g. Caddy) in front of LocalStack.
 
 ## Services
 
 | Route | Service |
 |---|---|
-| `/sqs` | SQS — list queues, inspect messages |
+| `/sqs` | SQS — list queues, inspect messages, history |
 | `/s3` | S3 — list buckets, browse objects, preview/download files |
 | `/cognito` | Cognito — list user pools, inspect users |
 | `/kms` | KMS — list and inspect encryption keys |
@@ -72,23 +102,27 @@ The defaults in `.env.example` work out of the box with a standard LocalStack se
 | `/secrets` | Secrets Manager — list and inspect secrets |
 | `/ssm` | SSM — list parameters |
 
-The dashboard at `/` aggregates resource counts from every service in parallel and surfaces per-service errors without failing the whole page.
+The dashboard at `/` aggregates resource counts from every service in parallel.
 
 ## Architecture
 
-- **Client factory** (`src/lib/server/aws.ts`) — single source of truth for AWS SDK clients; reads endpoint and credentials from env.
-- **Service registry** (`src/lib/server/registry.ts`) — declarative list of all services for the dashboard aggregator.
-- **Shared load helpers** (`src/lib/server/load.ts`) — pagination and partial-failure handling for SvelteKit `load` functions.
-- **Theme** — light/dark toggle with system preference detection, persisted in `localStorage`.
+- **Client factory** (`src/lib/floci/aws.ts`) — AWS SDK v3 clients with per-request
+  providers, so the active endpoint/region/credentials resolve from the per-dev Settings
+  (browser) at call time (falls back to env vars on the server for not-yet-migrated routes).
+- **Service registry** (`src/lib/floci/registry.ts`) — declarative list of all services for
+  the dashboard aggregator.
+- **Settings store** (`src/lib/stores/settings.svelte.ts`) — per-browser connection,
+  persisted in `localStorage`.
+- **Client actions** (`src/lib/utils/clientAction.ts`) — `use:enhance`-compatible helper that
+  runs mutations in the browser (no server form actions).
+- **Local history** (`src/lib/floci/storage/`) — SQS history stored per-browser in
+  `localStorage`.
 
 ## Other commands
 
 ```sh
 bun run build      # production build
 bun run preview    # preview production build
+bun run start      # run the production server locally (node build)
 bun run check      # type-check with svelte-check
 ```
-
-
-<img width="1398" height="861" alt="image" src="https://github.com/user-attachments/assets/544ce3aa-1ea4-4678-95a9-0875e41b0c94" />
-

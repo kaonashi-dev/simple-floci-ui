@@ -5,18 +5,25 @@
 	import { Label } from '$lib/components/ui/label';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { invokeFunction } from '$lib/floci/lambda';
 	import type { LambdaInvokeResult } from '$lib/types/lambda';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let invokeResult: LambdaInvokeResult | null = $state(null);
 	let showLogs = $state(false);
 
-	$effect(() => {
-		if (form?.action === 'invoke' && form.result) {
-			invokeResult = form.result as LambdaInvokeResult;
+	async function handleInvoke(fd: FormData) {
+		const payload = (fd.get('payload') as string)?.trim() || '{}';
+		try {
+			JSON.parse(payload);
+		} catch {
+			throw new Error('Payload must be valid JSON');
 		}
-	});
+		const result = await invokeFunction(data.name, payload);
+		return { result };
+	}
 
 	const envEntries = $derived(Object.entries(data.fn?.environment ?? {}).sort(([a], [b]) => a.localeCompare(b)));
 </script>
@@ -35,10 +42,6 @@
 
 	{#if data.error}
 		<ErrorPanel message="Could not load function" hint={data.error} />
-	{/if}
-
-	{#if form?.actionError}
-		<ErrorPanel message={form.actionError} />
 	{/if}
 
 	{#if data.fn}
@@ -69,7 +72,7 @@
 		<!-- Invoke panel -->
 		<div class="console-panel p-4 space-y-3">
 			<h2 class="text-sm font-semibold">Invoke Function</h2>
-			<form method="POST" action="?/invoke" use:enhance class="space-y-2.5">
+			<form method="POST" use:enhance={clientAction(handleInvoke, { onSuccess: (d) => (invokeResult = d.result as LambdaInvokeResult) })} class="space-y-2.5">
 				<div class="space-y-1.5">
 					<Label for="payload" class="text-xs text-muted-foreground">JSON Payload</Label>
 					<Textarea

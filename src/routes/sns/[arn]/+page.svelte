@@ -6,10 +6,20 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
+	import { clientAction } from '$lib/utils/clientAction';
+	import { publish } from '$lib/floci/sns';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	const topicName = $derived(data.arn.split(':').pop() ?? data.arn);
+
+	async function handlePublish(fd: FormData) {
+		const message = (fd.get('message') as string)?.trim();
+		const subject = (fd.get('subject') as string)?.trim() || undefined;
+		if (!message) throw new Error('Message is required');
+		await publish(data.arn, message, subject);
+		return { success: 'Message published' };
+	}
 
 	const keyAttrs = ['DisplayName', 'SubscriptionsConfirmed', 'SubscriptionsPending', 'SubscriptionsDeleted'];
 </script>
@@ -32,19 +42,6 @@
 
 	{#if data.error}
 		<ErrorPanel message="Could not load topic" hint={data.error} />
-	{/if}
-
-	{#if form?.actionError}
-		<ErrorPanel message={form.actionError} />
-	{/if}
-
-	{#if form?.success}
-		<div class="flex items-center gap-2 rounded border border-emerald-500/20 bg-emerald-500/8 px-4 py-2.5 text-sm text-emerald-600 dark:text-emerald-400">
-			<svg class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-			</svg>
-			{form.success}
-		</div>
 	{/if}
 
 	<div class="console-panel p-4 space-y-3">
@@ -111,7 +108,7 @@
 
 	<div class="console-panel p-4 space-y-3">
 		<h2 class="text-sm font-semibold">Publish Message</h2>
-		<form method="POST" action="?/publish" use:enhance class="space-y-3">
+		<form method="POST" use:enhance={clientAction(handlePublish)} class="space-y-3">
 			<div class="space-y-1.5">
 				<Label for="subject" class="text-xs text-muted-foreground">Subject <span class="text-muted-foreground/60">(optional)</span></Label>
 				<Input id="subject" name="subject" placeholder="Message subject" class="h-8 text-sm" />
