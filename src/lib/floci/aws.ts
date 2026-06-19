@@ -1,5 +1,9 @@
 import { browser } from '$app/environment';
-import { getAwsConnectionSettings } from '$lib/stores/settings.svelte';
+import {
+	DEFAULT_AWS_CONNECTION,
+	getAwsConnectionSettings,
+	resolveFlociRuntimeEndpoint
+} from '$lib/stores/settings.svelte';
 
 /**
  * Resolve the active connection at call time.
@@ -13,16 +17,20 @@ import { getAwsConnectionSettings } from '$lib/stores/settings.svelte';
 function resolve() {
 	if (browser) {
 		const s = getAwsConnectionSettings();
+		const endpoint = s.endpoint || DEFAULT_AWS_CONNECTION.endpoint;
 		return {
 			region: s.region || 'us-east-1',
-			endpoint: s.endpoint || 'http://localhost:4567',
+			endpoint,
+			runtimeEndpoint: resolveFlociRuntimeEndpoint(endpoint),
 			accessKeyId: s.accessKeyId || 'test',
 			secretAccessKey: s.secretAccessKey || 'test'
 		};
 	}
+	const endpoint = process.env.AWS_ENDPOINT_URL || DEFAULT_AWS_CONNECTION.endpoint;
 	return {
 		region: process.env.AWS_REGION || 'us-east-1',
-		endpoint: process.env.AWS_ENDPOINT_URL || 'http://localhost:4567',
+		endpoint,
+		runtimeEndpoint: endpoint,
 		accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
 		secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test'
 	};
@@ -38,7 +46,7 @@ export function getEndpoint(): string {
 // latest per-dev settings without needing to be recreated.
 function endpointProvider() {
 	return async () => {
-		const url = new URL(resolve().endpoint);
+		const url = new URL(resolve().runtimeEndpoint);
 		return {
 			protocol: url.protocol,
 			hostname: url.hostname,

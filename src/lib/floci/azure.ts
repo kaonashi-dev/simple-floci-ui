@@ -1,5 +1,9 @@
 import { browser } from '$app/environment';
-import { getAzureConnectionSettings } from '$lib/stores/settings.svelte';
+import {
+	DEFAULT_AZURE_CONNECTION,
+	getAzureConnectionSettings,
+	resolveFlociRuntimeEndpoint
+} from '$lib/stores/settings.svelte';
 import type {
 	CloudStorageDownloadedObject,
 	CloudStorageObjectListing,
@@ -14,13 +18,17 @@ type AzureFetchOptions = {
 function resolve() {
 	if (browser) {
 		const s = getAzureConnectionSettings();
+		const endpoint = s.endpoint || DEFAULT_AZURE_CONNECTION.endpoint;
 		return {
-			endpoint: s.endpoint || 'http://localhost:4577',
+			endpoint,
+			runtimeEndpoint: resolveFlociRuntimeEndpoint(endpoint),
 			accountName: s.accountName || 'devstoreaccount1'
 		};
 	}
+	const endpoint = process.env.FLOCI_AZURE_ENDPOINT || process.env.FLOCI_AZ_ENDPOINT || DEFAULT_AZURE_CONNECTION.endpoint;
 	return {
-		endpoint: process.env.FLOCI_AZURE_ENDPOINT || process.env.FLOCI_AZ_ENDPOINT || 'http://localhost:4577',
+		endpoint,
+		runtimeEndpoint: endpoint,
 		accountName: process.env.FLOCI_AZURE_ACCOUNT_NAME || 'devstoreaccount1'
 	};
 }
@@ -38,10 +46,10 @@ async function azureFetch(
 	init: RequestInit = {},
 	options: AzureFetchOptions = {}
 ): Promise<Response | null> {
-	const { endpoint } = resolve();
+	const { endpoint, runtimeEndpoint } = resolve();
 	let res: Response;
 	try {
-		res = await fetch(`${endpoint}${path}`, {
+		res = await fetch(`${runtimeEndpoint}${path}`, {
 			...init,
 			headers: {
 				'x-ms-version': '2021-12-02',
