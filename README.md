@@ -1,15 +1,16 @@
 # simple-floci-ui
 
-A local AWS services dashboard for the Floci project. Browse and inspect resources across 13 AWS services running in your local environment (LocalStack or similar) — queues, buckets, tables, functions, logs, secrets, and more — from a single UI with light and dark themes.
+A local multi-cloud services dashboard for the Floci project. Browse and inspect AWS resources plus Azure Blob Storage and GCP Cloud Storage running in your local environment from a single UI with light and dark themes.
 
-The UI is **browser-direct**: it can be hosted once (e.g. on Railway) and every developer's browser talks straight to *their own* local Floci/LocalStack instance — much like the Forest Admin model. Nothing about your local stack is sent to the host.
+The UI is **browser-direct**: it can be hosted once (e.g. on Railway) and every developer's browser talks straight to *their own* local Floci runtimes — AWS/LocalStack, Floci-AZ, and Floci-GCP. Nothing about your local stack is sent to the host.
 
 ## Stack
 
 - [SvelteKit 5](https://svelte.dev) + TypeScript (client-rendered SPA, `ssr = false`)
 - [`@sveltejs/adapter-static`](https://svelte.dev/docs/kit/adapter-static) — builds a pure static SPA; the host just serves files
 - [Tailwind CSS v4](https://tailwindcss.com) + [bits-ui](https://bits-ui.com)
-- [AWS SDK v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/) — runs **in the browser**
+- [AWS SDK v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/) — runs **in the browser** for AWS-compatible services
+- Browser `fetch` REST clients for Floci-AZ and Floci-GCP storage APIs
 - [Bun](https://bun.sh) as the package manager and runtime
 
 ## How it works
@@ -18,36 +19,42 @@ The UI is **browser-direct**: it can be hosted once (e.g. on Railway) and every 
 ┌─────────────────┐         serves static UI          ┌──────────────────────┐
 │  Hosted UI      │ ───────────────────────────────▶  │  Developer's browser │
 │  (Railway, etc) │                                    │                      │
-└─────────────────┘                                    │   AWS SDK v3 calls   │
+└─────────────────┘                                    │   SDK/fetch calls    │
                                                         └──────────┬───────────┘
                                                                    │ direct
                                                                    ▼
                                                      ┌─────────────────────────┐
-                                                     │  Local Floci/LocalStack  │
+                                                     │  Local Floci runtimes    │
                                                      │  (this dev's machine)    │
                                                      └─────────────────────────┘
 ```
 
 The hosted server never reaches your machine — it can't, and doesn't need to. All
-Floci/AWS calls happen in your browser, against the endpoint you set in **Settings**
+Floci calls happen in your browser, against the endpoints you set in **Settings**
 (stored per-browser in `localStorage`). SQS message history is likewise stored locally
 in your browser.
 
 ## Local development
 
-Prerequisites: [Bun](https://bun.sh) and a local AWS endpoint ([LocalStack](https://localstack.cloud)).
+Prerequisites: [Bun](https://bun.sh) and at least one local Floci runtime.
 
 ```sh
 # start a local Floci/LocalStack
 docker run --rm -p 4566:4566 localstack/localstack
+
+# optional: start Floci-AZ for Azure Blob Storage
+docker run --rm -p 4577:4577 floci/floci-az:latest
+
+# optional: start Floci-GCP for GCP Cloud Storage
+docker run --rm -p 4588:4588 floci/floci-gcp:latest
 
 # run the UI
 bun install
 bun run dev
 ```
 
-Open **http://localhost:5975**. Go to **Settings** and point the endpoint at your local
-instance (default: `http://localhost:4567`). The header shows a green indicator when connected.
+Open **http://localhost:5975**. Go to **Settings** and point the endpoints at your local
+instances. Defaults are AWS `http://localhost:4567`, Azure `http://localhost:4577`, and GCP `http://localhost:4588`.
 
 ## Deploy the UI to Railway
 
@@ -88,6 +95,8 @@ the green indicator should appear. Each developer's session uses their own machi
 |---|---|
 | `/sqs` | SQS — list queues, inspect messages, history |
 | `/s3` | S3 — list buckets, browse objects, preview/download files |
+| `/azure/storage` | Azure Blob Storage — list containers, browse/upload/download/delete blobs |
+| `/gcp/storage` | GCP Cloud Storage — list buckets, browse/upload/download/delete objects |
 | `/cognito` | Cognito — list user pools, inspect users |
 | `/kms` | KMS — list and inspect encryption keys |
 | `/lambda` | Lambda — list functions, view config and code |
@@ -100,13 +109,29 @@ the green indicator should appear. Each developer's session uses their own machi
 | `/secrets` | Secrets Manager — list and inspect secrets |
 | `/ssm` | SSM — list parameters |
 
-The dashboard at `/` aggregates resource counts from every service in parallel.
+The dashboard at `/` aggregates resource counts from every wired service in parallel and shows per-runtime connection status.
+
+### Multi-cloud scope
+
+The first multi-cloud phase is browser-direct storage:
+
+- Azure Blob Storage via Floci-AZ REST routes on port `4577`.
+- GCP Cloud Storage via Floci-GCP REST routes on port `4588`.
+
+The other high-use domains are visible as coming soon because they are better served by a local proxy/API phase:
+
+- Messaging: Azure Queue/Service Bus and GCP Pub/Sub.
+- Database: Azure Cosmos DB and GCP Firestore/Datastore.
+- Serverless: Azure Functions and GCP Cloud Functions/Run.
+- Secrets and keys: Azure Key Vault and GCP Secret Manager/KMS.
 
 ## Architecture
 
 - **Client factory** (`src/lib/floci/aws.ts`) — AWS SDK v3 clients with per-request
   providers, so the active endpoint/region/credentials resolve from the per-dev Settings
   (browser) at call time (falls back to env vars on the server for not-yet-migrated routes).
+- **Azure/GCP REST clients** (`src/lib/floci/azure.ts`, `src/lib/floci/gcp.ts`) — browser-direct
+  `fetch` clients for Floci-AZ and Floci-GCP storage APIs.
 - **Service registry** (`src/lib/floci/registry.ts`) — declarative list of all services for
   the dashboard aggregator.
 - **Settings store** (`src/lib/stores/settings.svelte.ts`) — per-browser connection,
