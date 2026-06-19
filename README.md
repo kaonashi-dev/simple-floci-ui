@@ -1,6 +1,6 @@
 # simple-floci-ui
 
-A local multi-cloud services dashboard for the Floci project. Browse and inspect AWS resources plus Azure Blob Storage and GCP Cloud Storage running in your local environment from a single UI with light and dark themes.
+A local multi-cloud services dashboard for the Floci project. Browse and inspect AWS resources, the Azure service catalog, Azure Blob Storage, and GCP Cloud Storage running in your local environment from a single UI with light and dark themes.
 
 The UI is **browser-direct**: it can be hosted once (e.g. on Railway) and every developer's browser talks straight to *their own* local Floci runtimes — AWS/LocalStack, Floci-AZ, and Floci-GCP. Nothing about your local stack is sent to the host.
 
@@ -42,7 +42,7 @@ Prerequisites: [Bun](https://bun.sh) and at least one local Floci runtime.
 # start a local Floci/LocalStack
 docker run --rm -p 4566:4566 localstack/localstack
 
-# optional: start Floci-AZ for Azure Blob Storage
+# optional: start Floci-AZ for Azure Blob Storage and service health
 docker run --rm -p 4577:4577 floci/floci-az:latest
 
 # optional: start Floci-GCP for GCP Cloud Storage
@@ -93,10 +93,12 @@ the green indicator should appear. Each developer's session uses their own machi
 
 | Route | Service |
 |---|---|
+| `/azure` | Azure catalog — Floci-AZ service landing page |
+| `/azure/storage` | Azure Blob Storage — list containers, browse/upload/download/delete blobs |
+| `/azure/{service}` | Azure planned services — dedicated placeholder routes for each Floci-AZ service |
+| `/gcp/storage` | GCP Cloud Storage — list buckets, browse/upload/download/delete objects |
 | `/sqs` | SQS — list queues, inspect messages, history |
 | `/s3` | S3 — list buckets, browse objects, preview/download files |
-| `/azure/storage` | Azure Blob Storage — list containers, browse/upload/download/delete blobs |
-| `/gcp/storage` | GCP Cloud Storage — list buckets, browse/upload/download/delete objects |
 | `/cognito` | Cognito — list user pools, inspect users |
 | `/kms` | KMS — list and inspect encryption keys |
 | `/lambda` | Lambda — list functions, view config and code |
@@ -111,12 +113,15 @@ the green indicator should appear. Each developer's session uses their own machi
 
 The dashboard at `/` aggregates resource counts from every wired service in parallel and shows per-runtime connection status.
 
+Azure planned routes are generated from `src/lib/floci/azure-catalog.ts`. The catalog currently reserves routes for Queue Storage, Table Storage, Azure Functions, App Configuration, Key Vault, Event Hubs, Service Bus, Cosmos DB, AKS, Azure SQL, API Management, Virtual Machines, Cache for Redis, Container Registry, Virtual Network, Azure Monitor, Microsoft Entra ID, and Email Communication.
+
 ### Multi-cloud scope
 
-The first multi-cloud phase is browser-direct storage:
+The first multi-cloud phase is browser-direct storage plus provider-specific cataloging:
 
 - Azure Blob Storage via Floci-AZ REST routes on port `4577`.
 - GCP Cloud Storage via Floci-GCP REST routes on port `4588`.
+- Azure planned service routes under `/azure/*` so each service can grow into its own view.
 
 Provider routes are intentionally separated by prefix:
 
@@ -126,12 +131,7 @@ Provider routes are intentionally separated by prefix:
 
 Shared components are used only for common UI primitives. If a provider service diverges in workflow, capabilities, or data shape, give it its own view under that provider prefix instead of forcing a generic cross-cloud screen.
 
-The other high-use domains are visible as coming soon because they are better served by a local proxy/API phase:
-
-- Messaging: Azure Queue/Service Bus and GCP Pub/Sub.
-- Database: Azure Cosmos DB and GCP Firestore/Datastore.
-- Serverless: Azure Functions and GCP Cloud Functions/Run.
-- Secrets and keys: Azure Key Vault and GCP Secret Manager/KMS.
+Most non-storage Azure and GCP services are visible as planned because they are likely better served by a local proxy/API phase or service-specific browser clients.
 
 ## Architecture
 
@@ -140,6 +140,8 @@ The other high-use domains are visible as coming soon because they are better se
   (browser) at call time (falls back to env vars on the server for not-yet-migrated routes).
 - **Azure/GCP REST clients** (`src/lib/floci/azure.ts`, `src/lib/floci/gcp.ts`) — browser-direct
   `fetch` clients for Floci-AZ and Floci-GCP storage APIs.
+- **Azure catalog** (`src/lib/floci/azure-catalog.ts`) — service definitions, route prefixes,
+  status, protocol hints, and dashboard/sidebar metadata for Floci-AZ views.
 - **Service registry** (`src/lib/floci/registry.ts`) — declarative list of all services for
   the dashboard aggregator.
 - **Settings store** (`src/lib/stores/settings.svelte.ts`) — per-browser connection,
