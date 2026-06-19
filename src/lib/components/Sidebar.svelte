@@ -19,6 +19,8 @@
 
 	const links = [
 		{ href: '/', label: 'Dashboard', icon: LayoutDashboardIcon },
+		{ href: '/azure/storage', label: 'Azure Blob', icon: HardDriveIcon },
+		{ href: '/gcp/storage', label: 'GCP Storage', icon: HardDriveIcon },
 		{ href: '/sqs', label: 'SQS', icon: MessageSquareIcon },
 		{ href: '/s3', label: 'S3', icon: HardDriveIcon },
 		{ href: '/cognito', label: 'Cognito', icon: UsersRoundIcon },
@@ -34,7 +36,16 @@
 		{ href: '/ssm', label: 'SSM Params', icon: SlidersIcon }
 	];
 
-	const disabled: { label: string; icon: typeof LayoutDashboardIcon }[] = [];
+	const disabled: { label: string; icon: typeof LayoutDashboardIcon }[] = [
+		{ label: 'Azure Messaging', icon: MessageSquareIcon },
+		{ label: 'Azure Cosmos DB', icon: DatabaseIcon },
+		{ label: 'Azure Functions', icon: SigmaIcon },
+		{ label: 'Azure Key Vault', icon: LockIcon },
+		{ label: 'GCP Pub/Sub', icon: MessageSquareIcon },
+		{ label: 'GCP Firestore', icon: DatabaseIcon },
+		{ label: 'GCP Serverless', icon: SigmaIcon },
+		{ label: 'GCP Secret Manager', icon: LockIcon }
+	];
 
 	let { onNavigate }: { onNavigate?: () => void } = $props();
 
@@ -49,7 +60,7 @@
 	<div class="border-b border-sidebar-border px-4 py-3">
 		<div class="flex items-center gap-2 text-xs text-sidebar-foreground/70">
 			<BoxesIcon class="size-3.5 text-primary shrink-0" />
-			<span class="font-medium">AWS Local Services</span>
+			<span class="font-medium">Local Cloud Services</span>
 		</div>
 	</div>
 
