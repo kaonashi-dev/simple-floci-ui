@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { AZURE_SERVICES, type AzureServiceIcon } from '$lib/floci/azure-catalog';
 	import { cn } from '$lib/utils';
 	import BoxesIcon from '@lucide/svelte/icons/boxes';
 	import DatabaseIcon from '@lucide/svelte/icons/database';
@@ -19,23 +20,40 @@
 
 	const dashboardLink = { href: '/', label: 'Dashboard', icon: LayoutDashboardIcon };
 	const DashboardIcon = dashboardLink.icon;
+	const azureIconMap: Record<AzureServiceIcon, typeof LayoutDashboardIcon> = {
+		storage: HardDriveIcon,
+		messaging: MessageSquareIcon,
+		database: DatabaseIcon,
+		serverless: SigmaIcon,
+		config: SlidersIcon,
+		security: KeyRoundIcon,
+		networking: NetworkIcon,
+		compute: ZapIcon,
+		containers: BoxesIcon,
+		observability: ScrollTextIcon,
+		identity: UsersRoundIcon
+	};
 
 	const groups = [
 		{
 			label: 'Azure',
 			prefix: '/azure',
-			links: [{ href: '/azure/storage', label: 'Blob Storage', icon: HardDriveIcon }],
-			disabled: [
-				{ label: 'Messaging', icon: MessageSquareIcon },
-				{ label: 'Cosmos DB', icon: DatabaseIcon },
-				{ label: 'Functions', icon: SigmaIcon },
-				{ label: 'Key Vault', icon: LockIcon }
-			]
+			links: [
+				{ href: '/azure', label: 'Overview', icon: BoxesIcon, status: 'available', exact: true },
+				...AZURE_SERVICES.map((service) => ({
+					href: service.route,
+					label: service.shortName ?? service.name,
+					icon: azureIconMap[service.icon],
+					status: service.status,
+					exact: false
+				}))
+			],
+			disabled: []
 		},
 		{
 			label: 'GCP',
 			prefix: '/gcp',
-			links: [{ href: '/gcp/storage', label: 'Cloud Storage', icon: HardDriveIcon }],
+			links: [{ href: '/gcp/storage', label: 'Cloud Storage', icon: HardDriveIcon, status: 'available' }],
 			disabled: [
 				{ label: 'Pub/Sub', icon: MessageSquareIcon },
 				{ label: 'Firestore', icon: DatabaseIcon },
@@ -47,19 +65,19 @@
 			label: 'AWS',
 			prefix: '/',
 			links: [
-				{ href: '/sqs', label: 'SQS', icon: MessageSquareIcon },
-				{ href: '/s3', label: 'S3', icon: HardDriveIcon },
-				{ href: '/cognito', label: 'Cognito', icon: UsersRoundIcon },
-				{ href: '/kms', label: 'KMS', icon: KeyRoundIcon },
-				{ href: '/lambda', label: 'Lambda', icon: SigmaIcon },
-				{ href: '/dynamodb', label: 'DynamoDB', icon: DatabaseIcon },
-				{ href: '/sns', label: 'SNS', icon: RadioTowerIcon },
-				{ href: '/apigateway', label: 'API Gateway', icon: NetworkIcon },
-				{ href: '/iam', label: 'IAM', icon: ShieldIcon },
-				{ href: '/logs', label: 'CloudWatch Logs', icon: ScrollTextIcon },
-				{ href: '/eventbridge', label: 'EventBridge', icon: ZapIcon },
-				{ href: '/secrets', label: 'Secrets Manager', icon: LockIcon },
-				{ href: '/ssm', label: 'SSM Params', icon: SlidersIcon }
+				{ href: '/sqs', label: 'SQS', icon: MessageSquareIcon, status: 'available' },
+				{ href: '/s3', label: 'S3', icon: HardDriveIcon, status: 'available' },
+				{ href: '/cognito', label: 'Cognito', icon: UsersRoundIcon, status: 'available' },
+				{ href: '/kms', label: 'KMS', icon: KeyRoundIcon, status: 'available' },
+				{ href: '/lambda', label: 'Lambda', icon: SigmaIcon, status: 'available' },
+				{ href: '/dynamodb', label: 'DynamoDB', icon: DatabaseIcon, status: 'available' },
+				{ href: '/sns', label: 'SNS', icon: RadioTowerIcon, status: 'available' },
+				{ href: '/apigateway', label: 'API Gateway', icon: NetworkIcon, status: 'available' },
+				{ href: '/iam', label: 'IAM', icon: ShieldIcon, status: 'available' },
+				{ href: '/logs', label: 'CloudWatch Logs', icon: ScrollTextIcon, status: 'available' },
+				{ href: '/eventbridge', label: 'EventBridge', icon: ZapIcon, status: 'available' },
+				{ href: '/secrets', label: 'Secrets Manager', icon: LockIcon, status: 'available' },
+				{ href: '/ssm', label: 'SSM Params', icon: SlidersIcon, status: 'available' }
 			],
 			disabled: []
 		}
@@ -67,8 +85,9 @@
 
 	let { onNavigate }: { onNavigate?: () => void } = $props();
 
-	function isActive(href: string) {
+	function isActive(href: string, exact = false) {
 		if (href === '/') return $page.url.pathname === '/';
+		if (exact) return $page.url.pathname === href;
 		return $page.url.pathname.startsWith(href);
 	}
 </script>
@@ -114,13 +133,16 @@
 						onclick={onNavigate}
 						class={cn(
 							'group flex items-center gap-2.5 rounded px-2 py-1.5 text-sm transition-colors mb-0.5',
-							isActive(link.href)
+							isActive(link.href, 'exact' in link && link.exact)
 								? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-[inset_2px_0_0_var(--sidebar-primary)]'
 								: 'text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
 						)}
 					>
-						<Icon class={cn('size-4 shrink-0', isActive(link.href) ? 'text-primary' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80')} />
+						<Icon class={cn('size-4 shrink-0', isActive(link.href, 'exact' in link && link.exact) ? 'text-primary' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80')} />
 						<span class="truncate">{link.label}</span>
+						{#if link.status === 'planned'}
+							<span class="ml-auto rounded border border-sidebar-border/50 px-1 py-px font-mono text-[9px] text-sidebar-foreground/30">soon</span>
+						{/if}
 					</a>
 				{/each}
 
