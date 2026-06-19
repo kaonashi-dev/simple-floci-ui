@@ -11,6 +11,8 @@ import { listLogGroups } from './logs';
 import { listEventBuses } from './eventbridge';
 import { listSecrets } from './secrets';
 import { listParameters } from './ssm';
+import { listAzureBlobContainers } from './azure';
+import { listGcpBuckets } from './gcp';
 
 export type ServiceEntry = {
 	id: string;
@@ -31,4 +33,6 @@ export const SERVICES: ServiceEntry[] = [
 	{ id: 'eventbridge', list: listEventBuses },
 	{ id: 'secrets',     list: listSecrets },
 	{ id: 'ssm',         list: listParameters },
+	{ id: 'azure-storage', list: listAzureBlobContainers },
+	{ id: 'gcp-storage',   list: listGcpBuckets },
 ];

@@ -7,8 +7,15 @@
 	import { Label } from '$lib/components/ui/label';
 	import { clientAction } from '$lib/utils/clientAction';
 	import { formatBytes } from '$lib/utils/formatBytes';
-	import { connectionSettings, DEFAULT_CONNECTION } from '$lib/stores/settings.svelte';
+	import {
+		connectionSettings,
+		DEFAULT_AWS_CONNECTION,
+		DEFAULT_AZURE_CONNECTION,
+		DEFAULT_GCP_CONNECTION
+	} from '$lib/stores/settings.svelte';
 	import { checkConnection } from '$lib/floci/floci';
+	import { checkAzureConnection } from '$lib/floci/azure';
+	import { checkGcpConnection } from '$lib/floci/gcp';
 	import { resetDb } from '$lib/floci/sqs-history';
 	import PlugIcon from '@lucide/svelte/icons/plug';
 	import DatabaseIcon from '@lucide/svelte/icons/database';
@@ -17,33 +24,77 @@
 	let { data } = $props();
 
 	let showResetConfirm = $state(false);
-	let testing = $state(false);
+	let testingAws = $state(false);
+	let testingAzure = $state(false);
+	let testingGcp = $state(false);
 
 	// Editable copy of the per-dev connection (persisted to localStorage on save).
-	let endpoint = $state(connectionSettings.all.endpoint);
-	let region = $state(connectionSettings.all.region);
-	let accessKeyId = $state(connectionSettings.all.accessKeyId);
-	let secretAccessKey = $state(connectionSettings.all.secretAccessKey);
+	let awsEndpoint = $state(connectionSettings.aws.endpoint);
+	let awsRegion = $state(connectionSettings.aws.region);
+	let awsAccessKeyId = $state(connectionSettings.aws.accessKeyId);
+	let awsSecretAccessKey = $state(connectionSettings.aws.secretAccessKey);
+	let azureEndpoint = $state(connectionSettings.azure.endpoint);
+	let azureAccountName = $state(connectionSettings.azure.accountName);
+	let gcpEndpoint = $state(connectionSettings.gcp.endpoint);
+	let gcpProject = $state(connectionSettings.gcp.project);
 
-	async function saveConnection() {
-		connectionSettings.save({ endpoint, region, accessKeyId, secretAccessKey });
-		testing = true;
+	async function saveAwsConnection() {
+		connectionSettings.saveAws({
+			endpoint: awsEndpoint,
+			region: awsRegion,
+			accessKeyId: awsAccessKeyId,
+			secretAccessKey: awsSecretAccessKey
+		});
+		testingAws = true;
 		try {
 			const status = await checkConnection();
-			// Refresh the header connection indicator.
 			await invalidateAll();
 			if (!status.ok) throw new Error(status.error ?? 'Could not connect');
-			return { success: `Connected to ${status.endpoint}` };
+			return { success: `AWS connected to ${status.endpoint}` };
 		} finally {
-			testing = false;
+			testingAws = false;
 		}
 	}
 
-	function restoreDefaults() {
-		endpoint = DEFAULT_CONNECTION.endpoint;
-		region = DEFAULT_CONNECTION.region;
-		accessKeyId = DEFAULT_CONNECTION.accessKeyId;
-		secretAccessKey = DEFAULT_CONNECTION.secretAccessKey;
+	async function saveAzureConnection() {
+		connectionSettings.saveAzure({ endpoint: azureEndpoint, accountName: azureAccountName });
+		testingAzure = true;
+		try {
+			await checkAzureConnection();
+			await invalidateAll();
+			return { success: `Azure connected to ${azureEndpoint}` };
+		} finally {
+			testingAzure = false;
+		}
+	}
+
+	async function saveGcpConnection() {
+		connectionSettings.saveGcp({ endpoint: gcpEndpoint, project: gcpProject });
+		testingGcp = true;
+		try {
+			await checkGcpConnection();
+			await invalidateAll();
+			return { success: `GCP connected to ${gcpEndpoint}` };
+		} finally {
+			testingGcp = false;
+		}
+	}
+
+	function restoreAwsDefaults() {
+		awsEndpoint = DEFAULT_AWS_CONNECTION.endpoint;
+		awsRegion = DEFAULT_AWS_CONNECTION.region;
+		awsAccessKeyId = DEFAULT_AWS_CONNECTION.accessKeyId;
+		awsSecretAccessKey = DEFAULT_AWS_CONNECTION.secretAccessKey;
+	}
+
+	function restoreAzureDefaults() {
+		azureEndpoint = DEFAULT_AZURE_CONNECTION.endpoint;
+		azureAccountName = DEFAULT_AZURE_CONNECTION.accountName;
+	}
+
+	function restoreGcpDefaults() {
+		gcpEndpoint = DEFAULT_GCP_CONNECTION.endpoint;
+		gcpProject = DEFAULT_GCP_CONNECTION.project;
 	}
 
 	async function handleReset() {
@@ -62,42 +113,99 @@
 	<section class="space-y-3">
 		<div class="flex items-center gap-2">
 			<PlugIcon class="size-4 text-muted-foreground" />
-			<h2 class="text-sm font-semibold">Floci connection</h2>
+			<h2 class="text-sm font-semibold">Floci runtime connections</h2>
 		</div>
 		<p class="text-xs text-muted-foreground/70">
-			The UI talks to your <strong>local</strong> Floci/LocalStack instance directly from this browser.
-			Stored only on this device. Default uses LocalStack's trusted-HTTPS loopback domain so it works in
-			every browser.
+			The UI talks directly from this browser to your local Floci AWS, Floci-AZ, and Floci-GCP runtimes.
+			All values are stored only on this device.
 		</p>
 
 		<form
 			method="POST"
-			use:enhance={clientAction(saveConnection)}
+			use:enhance={clientAction(saveAwsConnection)}
 			class="console-panel space-y-3 p-4"
 		>
+			<div>
+				<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">AWS / Floci core</p>
+				<p class="mt-0.5 text-xs text-muted-foreground/60">AWS-compatible services exposed by Floci or LocalStack.</p>
+			</div>
 			<div class="space-y-1.5">
-				<Label for="endpoint" class="text-xs">Endpoint URL</Label>
-				<Input id="endpoint" bind:value={endpoint} placeholder={DEFAULT_CONNECTION.endpoint} class="h-8 font-mono text-xs" />
+				<Label for="aws-endpoint" class="text-xs">Endpoint URL</Label>
+				<Input id="aws-endpoint" bind:value={awsEndpoint} placeholder={DEFAULT_AWS_CONNECTION.endpoint} class="h-8 font-mono text-xs" />
 			</div>
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
 				<div class="space-y-1.5">
-					<Label for="region" class="text-xs">Region</Label>
-					<Input id="region" bind:value={region} placeholder="us-east-1" class="h-8 font-mono text-xs" />
+					<Label for="aws-region" class="text-xs">Region</Label>
+					<Input id="aws-region" bind:value={awsRegion} placeholder="us-east-1" class="h-8 font-mono text-xs" />
 				</div>
 				<div class="space-y-1.5">
-					<Label for="accessKeyId" class="text-xs">Access key ID</Label>
-					<Input id="accessKeyId" bind:value={accessKeyId} placeholder="test" class="h-8 font-mono text-xs" />
+					<Label for="aws-accessKeyId" class="text-xs">Access key ID</Label>
+					<Input id="aws-accessKeyId" bind:value={awsAccessKeyId} placeholder="test" class="h-8 font-mono text-xs" />
 				</div>
 				<div class="space-y-1.5">
-					<Label for="secretAccessKey" class="text-xs">Secret access key</Label>
-					<Input id="secretAccessKey" bind:value={secretAccessKey} type="password" placeholder="test" class="h-8 font-mono text-xs" />
+					<Label for="aws-secretAccessKey" class="text-xs">Secret access key</Label>
+					<Input id="aws-secretAccessKey" bind:value={awsSecretAccessKey} type="password" placeholder="test" class="h-8 font-mono text-xs" />
 				</div>
 			</div>
 			<div class="flex gap-2">
-				<Button type="submit" size="sm" disabled={testing}>
-					{testing ? 'Testing…' : 'Save & test'}
+				<Button type="submit" size="sm" disabled={testingAws}>
+					{testingAws ? 'Testing…' : 'Save & test AWS'}
 				</Button>
-				<Button type="button" variant="ghost" size="sm" onclick={restoreDefaults}>Restore defaults</Button>
+				<Button type="button" variant="ghost" size="sm" onclick={restoreAwsDefaults}>Restore defaults</Button>
+			</div>
+		</form>
+
+		<form
+			method="POST"
+			use:enhance={clientAction(saveAzureConnection)}
+			class="console-panel space-y-3 p-4"
+		>
+			<div>
+				<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">Azure / Floci-AZ</p>
+				<p class="mt-0.5 text-xs text-muted-foreground/60">Default runtime at port 4577 using the local storage account.</p>
+			</div>
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+				<div class="space-y-1.5">
+					<Label for="azure-endpoint" class="text-xs">Endpoint URL</Label>
+					<Input id="azure-endpoint" bind:value={azureEndpoint} placeholder={DEFAULT_AZURE_CONNECTION.endpoint} class="h-8 font-mono text-xs" />
+				</div>
+				<div class="space-y-1.5">
+					<Label for="azure-account" class="text-xs">Account name</Label>
+					<Input id="azure-account" bind:value={azureAccountName} placeholder={DEFAULT_AZURE_CONNECTION.accountName} class="h-8 font-mono text-xs" />
+				</div>
+			</div>
+			<div class="flex gap-2">
+				<Button type="submit" size="sm" disabled={testingAzure}>
+					{testingAzure ? 'Testing…' : 'Save & test Azure'}
+				</Button>
+				<Button type="button" variant="ghost" size="sm" onclick={restoreAzureDefaults}>Restore defaults</Button>
+			</div>
+		</form>
+
+		<form
+			method="POST"
+			use:enhance={clientAction(saveGcpConnection)}
+			class="console-panel space-y-3 p-4"
+		>
+			<div>
+				<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">GCP / Floci-GCP</p>
+				<p class="mt-0.5 text-xs text-muted-foreground/60">Default runtime at port 4588 scoped by project ID.</p>
+			</div>
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+				<div class="space-y-1.5">
+					<Label for="gcp-endpoint" class="text-xs">Endpoint URL</Label>
+					<Input id="gcp-endpoint" bind:value={gcpEndpoint} placeholder={DEFAULT_GCP_CONNECTION.endpoint} class="h-8 font-mono text-xs" />
+				</div>
+				<div class="space-y-1.5">
+					<Label for="gcp-project" class="text-xs">Project ID</Label>
+					<Input id="gcp-project" bind:value={gcpProject} placeholder={DEFAULT_GCP_CONNECTION.project} class="h-8 font-mono text-xs" />
+				</div>
+			</div>
+			<div class="flex gap-2">
+				<Button type="submit" size="sm" disabled={testingGcp}>
+					{testingGcp ? 'Testing…' : 'Save & test GCP'}
+				</Button>
+				<Button type="button" variant="ghost" size="sm" onclick={restoreGcpDefaults}>Restore defaults</Button>
 			</div>
 		</form>
 	</section>
