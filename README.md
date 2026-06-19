@@ -34,7 +34,21 @@ Floci calls happen in your browser, against the endpoints you set in **Settings*
 (stored per-browser in `localStorage`). SQS message history is likewise stored locally
 in your browser.
 
-## Local development
+> ## ⚠️ Security: local/test runtimes only — never real credentials
+>
+> This UI is for **LOCAL/TEST** Floci/LocalStack runtimes only (e.g. LocalStack
+> `test`/`test`). **Never enter real cloud credentials.** Connection details are kept in
+> the browser's `localStorage` — readable by any XSS on the page — and are sent
+> **directly from your browser** to the endpoint you configure. Treat anything you type
+> in Settings as throwaway local test data.
+
+## Run it locally (recommended)
+
+Running the UI on your own machine is the lowest-friction path: the browser talks to
+your Floci runtimes **same-origin** through a built-in proxy, so there is **no CORS
+config, no Local Network Access prompt, and no mixed-content** — for AWS, Azure, and GCP
+alike. The values you store in Settings remain the real Floci runtime URLs; the proxy is
+transparent.
 
 Prerequisites: [Bun](https://bun.sh) and at least one local Floci runtime.
 
@@ -49,17 +63,47 @@ docker run --rm -p 4577:4577 floci/floci-az:latest
 # optional: start Floci-GCP for GCP Cloud Storage
 docker run --rm -p 4588:4588 floci/floci-gcp:latest
 
-# run the UI
 bun install
-bun run dev
 ```
 
-Open **http://localhost:5975**. Go to **Settings** and point the endpoints at your local
-instances. Defaults are AWS `http://localhost:4567`, Azure `http://localhost:4577`, and GCP `http://localhost:4588`.
+Then pick one of the two local options — both proxy same-origin, so **neither needs any
+CORS setup**:
 
-During `bun run dev`, loopback endpoints such as `http://localhost:4545`, `http://localhost:4577`, and `http://localhost:4588` are automatically routed through a same-origin Vite proxy. This sidesteps browser CORS and Local Network Access friction during local dev, regardless of each runtime's CORS configuration. The values stored in Settings remain the real Floci runtime URLs.
+- **`bun run dev`** — dev server with hot reload. Open **http://localhost:5975**.
+- **`bun run start:local`** — runs the production build behind the same proxy
+  (`bun server.js`), bound to `127.0.0.1` for security. Build first, then start:
 
-## Deploy the UI to Railway
+  ```sh
+  bun run build
+  bun run start:local         # serves on http://127.0.0.1:3000 (honors HOST/PORT)
+  ```
+
+In either case, go to **Settings** and point the endpoints at your local instances.
+Defaults are AWS `http://localhost:4567`, Azure `http://localhost:4577`, and GCP
+`http://localhost:4588`.
+
+### How the same-origin proxy works
+
+Under both `bun run dev` and `bun run start:local`, loopback endpoints such as
+`http://localhost:4545`, `http://localhost:4577`, and `http://localhost:4588` are
+automatically routed through a same-origin proxy on the loopback host serving the UI.
+This sidesteps browser CORS and Local Network Access friction entirely, regardless of
+each runtime's CORS configuration. The values stored in Settings remain the real Floci
+runtime URLs.
+
+> **Note:** the proxy is only active when the UI is served from a loopback host — i.e.
+> `bun run dev` and `bun run start:local`. It is **not** included in `vite preview`
+> (`bun run preview`) and is **not** available on Railway (a hosted box cannot reach your
+> localhost). To run the built app locally, use `bun run start:local`, **not**
+> `vite preview`.
+
+## Deploy the UI to Railway (advanced)
+
+The hosted page is best treated as a demo/landing. Because the host cannot reach your
+machine, the browser must talk to your local runtimes **directly**, which requires
+per-runtime CORS **and** the browser's Local Network Access permission (both below). If
+you just want it to work, [run it locally](#run-it-locally-recommended) with
+`bun run start:local` instead.
 
 The host only serves the built UI — no AWS/Floci config is required on it.
 
@@ -88,7 +132,7 @@ docker run --rm \
   floci/floci:1.5.26
 ```
 
-- `FLOCI_SECURITY_EXTRA_CORS_ALLOWED_ORIGINS` is comma-separated. Add your own origin too, or use `*` to allow any origin (convenient for local use).
+- `FLOCI_SECURITY_EXTRA_CORS_ALLOWED_ORIGINS` is comma-separated. **Prefer enumerating explicit origins** — the hosted URL plus your localhost (e.g. `https://simple-floci-ui-production.up.railway.app,http://localhost:5975`). Avoid `*`: it lets **any** website you visit reach your local Floci runtime. The risk is low because it is local test data (and you should never put real credentials here — see the security note above), but it is not best practice; reserve `*` for throwaway local use only.
 - `amz-sdk-invocation-id` and `amz-sdk-request` are sent by AWS SDK v3 on every request — without them the `OPTIONS` preflight fails even though the rest of the header list looks correct.
 - Do **not** set `FLOCI_SECURITY_DISABLE_CORS_HEADERS=true` — it turns CORS off.
 - Map the container to whichever host port your **Settings → AWS endpoint** uses (`4545` here, or `4567` for the UI default).
@@ -109,7 +153,7 @@ CORS alone is no longer enough. Since **Chrome 142** (Oct 2025), a public HTTPS 
 
 #### Azure (4577) and GCP (4588)
 
-Floci-AZ and Floci-GCP do not expose global CORS flags yet, so the hosted UI cannot reach them directly. For those providers, run the UI locally with `bun run dev` (same-origin proxy) or put a small local CORS proxy in front of the runtime until upstream CORS support lands.
+Floci-AZ and Floci-GCP do not expose global CORS flags yet, so the hosted UI cannot reach them directly. For those providers, run the UI locally with `bun run dev` or `bun run start:local` (both same-origin) — see [Run it locally](#run-it-locally-recommended) — or put a small local CORS proxy in front of the runtime until upstream CORS support lands.
 
 Then open the hosted URL, confirm/adjust the endpoint in **Settings → Save & test**, and the green indicator should appear. Each developer's session uses their own machine.
 
@@ -121,19 +165,19 @@ Then open the hosted URL, confirm/adjust the endpoint in **Settings → Save & t
 | `/azure/storage` | Azure Blob Storage — list containers, browse/upload/download/delete blobs |
 | `/azure/{service}` | Azure planned services — dedicated placeholder routes for each Floci-AZ service |
 | `/gcp/storage` | GCP Cloud Storage — list buckets, browse/upload/download/delete objects |
-| `/sqs` | SQS — list queues, inspect messages, history |
-| `/s3` | S3 — list buckets, browse objects, preview/download files |
-| `/cognito` | Cognito — list user pools, inspect users |
-| `/kms` | KMS — list and inspect encryption keys |
-| `/lambda` | Lambda — list functions, view config and code |
-| `/dynamodb` | DynamoDB — list tables, scan items |
-| `/sns` | SNS — list topics and subscriptions |
-| `/apigateway` | API Gateway — list REST APIs and routes |
-| `/iam` | IAM — list users, roles, and policies |
-| `/logs` | CloudWatch Logs — list log groups and streams |
-| `/eventbridge` | EventBridge — list buses and rules |
-| `/secrets` | Secrets Manager — list and inspect secrets |
-| `/ssm` | SSM — list parameters |
+| `/aws/sqs` | SQS — list queues, inspect messages, history |
+| `/aws/s3` | S3 — list buckets, browse objects, preview/download files |
+| `/aws/cognito` | Cognito — list user pools, inspect users |
+| `/aws/kms` | KMS — list and inspect encryption keys |
+| `/aws/lambda` | Lambda — list functions, view config and code |
+| `/aws/dynamodb` | DynamoDB — list tables, scan items |
+| `/aws/sns` | SNS — list topics and subscriptions |
+| `/aws/apigateway` | API Gateway — list REST APIs and routes |
+| `/aws/iam` | IAM — list users, roles, and policies |
+| `/aws/logs` | CloudWatch Logs — list log groups and streams |
+| `/aws/eventbridge` | EventBridge — list buses and rules |
+| `/aws/secrets` | Secrets Manager — list and inspect secrets |
+| `/aws/ssm` | SSM — list parameters |
 
 The dashboard at `/` aggregates resource counts from every wired service in parallel and shows per-runtime connection status.
 
@@ -147,11 +191,12 @@ The first multi-cloud phase is browser-direct storage plus provider-specific cat
 - GCP Cloud Storage via Floci-GCP REST routes on port `4588`.
 - Azure planned service routes under `/azure/*` so each service can grow into its own view.
 
-Provider routes are intentionally separated by prefix:
+Every provider is namespaced under its own prefix — no provider is the root default:
 
-- Existing AWS pages stay on the current root-level routes such as `/s3`, `/sqs`, and `/lambda`.
+- AWS pages live under `/aws/*` (e.g. `/aws/s3`, `/aws/sqs`, `/aws/lambda`).
 - Azure pages live under `/azure/*`.
 - GCP pages live under `/gcp/*`.
+- The root `/` is the cross-cloud dashboard; `/settings` is shared.
 
 Shared components are used only for common UI primitives. If a provider service diverges in workflow, capabilities, or data shape, give it its own view under that provider prefix instead of forcing a generic cross-cloud screen.
 
@@ -178,8 +223,12 @@ Most non-storage Azure and GCP services are visible as planned because they are 
 ## Other commands
 
 ```sh
-bun run build      # production build
-bun run preview    # preview production build
-bun run start      # serve the static build locally (sirv on :3000)
-bun run check      # type-check with svelte-check
+bun run build       # production build
+bun run start:local # built app + same-origin proxy (bun server.js, 127.0.0.1:3000) — best for local use
+bun run preview     # preview production build (vite preview) — NO same-origin proxy
+bun run start       # serve the static build (sirv, host 0.0.0.0:3000) — the Railway/static command, no proxy
+bun run check       # type-check with svelte-check
 ```
+
+To run the built app locally without CORS/Local-Network-Access friction, use
+`bun run start:local` (same-origin proxy), **not** `bun run preview`.
