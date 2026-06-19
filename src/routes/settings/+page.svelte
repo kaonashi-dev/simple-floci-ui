@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { dev } from '$app/environment';
+	import { browser, dev } from '$app/environment';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -18,6 +18,8 @@
 	import { checkAzureConnection } from '$lib/floci/azure';
 	import { checkGcpConnection } from '$lib/floci/gcp';
 	import { resetDb } from '$lib/floci/sqs-history';
+	import { isLoopbackHost } from '$lib/proxy-shared';
+	import AlertTriangleIcon from '@lucide/svelte/icons/triangle-alert';
 	import PlugIcon from '@lucide/svelte/icons/plug';
 	import DatabaseIcon from '@lucide/svelte/icons/database';
 	import TrashIcon from '@lucide/svelte/icons/trash-2';
@@ -29,11 +31,34 @@
 	let testingAzure = $state(false);
 	let testingGcp = $state(false);
 
+	// When a connection test fails against a loopback endpoint while this page is
+	// served over HTTPS from a non-loopback origin (the hosted Railway case), the
+	// browser cannot reach the user's localhost — surface a CORS / LNA hint.
+	let awsTestFailed = $state(false);
+
+	function isLoopbackEndpoint(endpoint: string): boolean {
+		try {
+			return isLoopbackHost(new URL(endpoint).hostname);
+		} catch {
+			return false;
+		}
+	}
+
+	function pageBlocksLoopback(endpoint: string): boolean {
+		if (!browser) return false;
+		return (
+			isLoopbackEndpoint(endpoint) &&
+			window.location.protocol === 'https:' &&
+			!isLoopbackHost(window.location.hostname)
+		);
+	}
+
 	// Editable copy of the per-dev connection (persisted to localStorage on save).
 	let awsEndpoint = $state(connectionSettings.aws.endpoint);
 	let awsRegion = $state(connectionSettings.aws.region);
 	let awsAccessKeyId = $state(connectionSettings.aws.accessKeyId);
 	let awsSecretAccessKey = $state(connectionSettings.aws.secretAccessKey);
+	const showAwsCorsHint = $derived(awsTestFailed && pageBlocksLoopback(awsEndpoint));
 	let azureEndpoint = $state(connectionSettings.azure.endpoint);
 	let azureAccountName = $state(connectionSettings.azure.accountName);
 	let gcpEndpoint = $state(connectionSettings.gcp.endpoint);
@@ -50,8 +75,15 @@
 		try {
 			const status = await checkConnection();
 			await invalidateAll();
-			if (!status.ok) throw new Error(status.error ?? 'Could not connect');
+			if (!status.ok) {
+				awsTestFailed = true;
+				throw new Error(status.error ?? 'Could not connect');
+			}
+			awsTestFailed = false;
 			return { success: `AWS connected to ${status.endpoint}` };
+		} catch (error) {
+			awsTestFailed = true;
+			throw error;
 		} finally {
 			testingAws = false;
 		}
@@ -153,12 +185,25 @@
 					<Input id="aws-secretAccessKey" bind:value={awsSecretAccessKey} type="password" placeholder="test" class="h-8 font-mono text-xs" />
 				</div>
 			</div>
+			<div class="flex items-start gap-2 rounded border border-amber-500/30 bg-amber-500/8 px-3 py-2 text-xs text-amber-700 dark:text-amber-300/90">
+				<AlertTriangleIcon class="mt-px size-3.5 shrink-0" />
+				<p>
+					<strong>Local / test runtimes only.</strong> Never enter real cloud credentials here — values are stored in this browser's
+					<code class="font-mono">localStorage</code> and sent directly from the browser to the endpoint you configure.
+				</p>
+			</div>
 			<div class="flex gap-2">
 				<Button type="submit" size="sm" disabled={testingAws}>
 					{testingAws ? 'Testing…' : 'Save & test AWS'}
 				</Button>
 				<Button type="button" variant="ghost" size="sm" onclick={restoreAwsDefaults}>Restore defaults</Button>
 			</div>
+			{#if showAwsCorsHint}
+				<p class="rounded border border-destructive/30 bg-destructive/8 px-3 py-2 text-xs text-destructive/90">
+					Looks like a CORS / Local Network Access block — this hosted UI can't reach a loopback endpoint over HTTPS. See
+					the README's hosted setup, or run the UI locally.
+				</p>
+			{/if}
 		</form>
 
 		<form

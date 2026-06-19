@@ -5,13 +5,25 @@
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import Toaster from '$lib/components/Toaster.svelte';
 	import favicon from '$lib/assets/favicon.svg';
+	import { page } from '$app/stores';
 	import { theme } from '$lib/stores/theme.svelte';
+	import { activeCloud, cloudFromPathname } from '$lib/stores/activeCloud.svelte';
 
 	let { data, children } = $props();
 
 	let sidebarOpen = $state(false);
 
-	onMount(() => theme.init());
+	onMount(() => {
+		theme.init();
+		activeCloud.init();
+	});
+
+	// Navigating to a cloud-specific route adopts that cloud's styling. Neutral
+	// routes ('/', '/settings') return null and leave the current cloud untouched.
+	$effect(() => {
+		const next = cloudFromPathname($page.url.pathname);
+		if (next) activeCloud.set(next);
+	});
 </script>
 
 <svelte:head>
