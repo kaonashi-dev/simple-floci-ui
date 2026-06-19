@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { AZURE_SERVICES, type AzureServiceIcon } from '$lib/floci/azure-catalog';
+	import { GCP_SERVICES, type GcpServiceIcon } from '$lib/floci/gcp-catalog';
 	import { activeCloud, type CloudId } from '$lib/stores/activeCloud.svelte';
 	import { cn } from '$lib/utils';
 	import BoxesIcon from '@lucide/svelte/icons/boxes';
@@ -35,6 +36,18 @@
 		identity: UsersRoundIcon
 	};
 
+	const gcpIconMap: Record<GcpServiceIcon, typeof LayoutDashboardIcon> = {
+		storage: HardDriveIcon,
+		messaging: MessageSquareIcon,
+		database: DatabaseIcon,
+		serverless: SigmaIcon,
+		security: KeyRoundIcon,
+		identity: UsersRoundIcon,
+		containers: BoxesIcon,
+		compute: ZapIcon,
+		observability: ScrollTextIcon
+	};
+
 	type SidebarLink = { href: string; label: string; icon: typeof LayoutDashboardIcon; status: string; exact?: boolean };
 	type SidebarDisabled = { label: string; icon: typeof LayoutDashboardIcon };
 	type SidebarGroup = { label: string; prefix: string; links: SidebarLink[]; disabled: SidebarDisabled[] };
@@ -58,13 +71,17 @@
 		gcp: {
 			label: 'GCP',
 			prefix: '/gcp',
-			links: [{ href: '/gcp/storage', label: 'Cloud Storage', icon: HardDriveIcon, status: 'available' }],
-			disabled: [
-				{ label: 'Pub/Sub', icon: MessageSquareIcon },
-				{ label: 'Firestore', icon: DatabaseIcon },
-				{ label: 'Serverless', icon: SigmaIcon },
-				{ label: 'Secret Manager', icon: LockIcon }
-			]
+			links: [
+				{ href: '/gcp', label: 'Overview', icon: BoxesIcon, status: 'available', exact: true },
+				...GCP_SERVICES.map((service) => ({
+					href: service.route,
+					label: service.shortName ?? service.name,
+					icon: gcpIconMap[service.icon],
+					status: service.status,
+					exact: false
+				}))
+			],
+			disabled: []
 		},
 		aws: {
 			label: 'AWS',

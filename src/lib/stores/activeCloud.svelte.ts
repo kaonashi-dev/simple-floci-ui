@@ -9,7 +9,7 @@ const CLOUDS: CloudId[] = ['aws', 'azure', 'gcp'];
 export const CLOUD_LANDING: Record<CloudId, string> = {
 	aws: '/aws/s3',
 	azure: '/azure',
-	gcp: '/gcp/storage'
+	gcp: '/gcp'
 };
 
 function isCloudId(value: unknown): value is CloudId {
