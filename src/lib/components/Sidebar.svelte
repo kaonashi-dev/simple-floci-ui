@@ -17,34 +17,52 @@
 	import UsersRoundIcon from '@lucide/svelte/icons/users-round';
 	import ZapIcon from '@lucide/svelte/icons/zap';
 
-	const links = [
-		{ href: '/', label: 'Dashboard', icon: LayoutDashboardIcon },
-		{ href: '/azure/storage', label: 'Azure Blob', icon: HardDriveIcon },
-		{ href: '/gcp/storage', label: 'GCP Storage', icon: HardDriveIcon },
-		{ href: '/sqs', label: 'SQS', icon: MessageSquareIcon },
-		{ href: '/s3', label: 'S3', icon: HardDriveIcon },
-		{ href: '/cognito', label: 'Cognito', icon: UsersRoundIcon },
-		{ href: '/kms', label: 'KMS', icon: KeyRoundIcon },
-		{ href: '/lambda', label: 'Lambda', icon: SigmaIcon },
-		{ href: '/dynamodb', label: 'DynamoDB', icon: DatabaseIcon },
-		{ href: '/sns', label: 'SNS', icon: RadioTowerIcon },
-		{ href: '/apigateway', label: 'API Gateway', icon: NetworkIcon },
-		{ href: '/iam', label: 'IAM', icon: ShieldIcon },
-		{ href: '/logs', label: 'CloudWatch Logs', icon: ScrollTextIcon },
-		{ href: '/eventbridge', label: 'EventBridge', icon: ZapIcon },
-		{ href: '/secrets', label: 'Secrets Manager', icon: LockIcon },
-		{ href: '/ssm', label: 'SSM Params', icon: SlidersIcon }
-	];
+	const dashboardLink = { href: '/', label: 'Dashboard', icon: LayoutDashboardIcon };
+	const DashboardIcon = dashboardLink.icon;
 
-	const disabled: { label: string; icon: typeof LayoutDashboardIcon }[] = [
-		{ label: 'Azure Messaging', icon: MessageSquareIcon },
-		{ label: 'Azure Cosmos DB', icon: DatabaseIcon },
-		{ label: 'Azure Functions', icon: SigmaIcon },
-		{ label: 'Azure Key Vault', icon: LockIcon },
-		{ label: 'GCP Pub/Sub', icon: MessageSquareIcon },
-		{ label: 'GCP Firestore', icon: DatabaseIcon },
-		{ label: 'GCP Serverless', icon: SigmaIcon },
-		{ label: 'GCP Secret Manager', icon: LockIcon }
+	const groups = [
+		{
+			label: 'Azure',
+			prefix: '/azure',
+			links: [{ href: '/azure/storage', label: 'Blob Storage', icon: HardDriveIcon }],
+			disabled: [
+				{ label: 'Messaging', icon: MessageSquareIcon },
+				{ label: 'Cosmos DB', icon: DatabaseIcon },
+				{ label: 'Functions', icon: SigmaIcon },
+				{ label: 'Key Vault', icon: LockIcon }
+			]
+		},
+		{
+			label: 'GCP',
+			prefix: '/gcp',
+			links: [{ href: '/gcp/storage', label: 'Cloud Storage', icon: HardDriveIcon }],
+			disabled: [
+				{ label: 'Pub/Sub', icon: MessageSquareIcon },
+				{ label: 'Firestore', icon: DatabaseIcon },
+				{ label: 'Serverless', icon: SigmaIcon },
+				{ label: 'Secret Manager', icon: LockIcon }
+			]
+		},
+		{
+			label: 'AWS',
+			prefix: '/',
+			links: [
+				{ href: '/sqs', label: 'SQS', icon: MessageSquareIcon },
+				{ href: '/s3', label: 'S3', icon: HardDriveIcon },
+				{ href: '/cognito', label: 'Cognito', icon: UsersRoundIcon },
+				{ href: '/kms', label: 'KMS', icon: KeyRoundIcon },
+				{ href: '/lambda', label: 'Lambda', icon: SigmaIcon },
+				{ href: '/dynamodb', label: 'DynamoDB', icon: DatabaseIcon },
+				{ href: '/sns', label: 'SNS', icon: RadioTowerIcon },
+				{ href: '/apigateway', label: 'API Gateway', icon: NetworkIcon },
+				{ href: '/iam', label: 'IAM', icon: ShieldIcon },
+				{ href: '/logs', label: 'CloudWatch Logs', icon: ScrollTextIcon },
+				{ href: '/eventbridge', label: 'EventBridge', icon: ZapIcon },
+				{ href: '/secrets', label: 'Secrets Manager', icon: LockIcon },
+				{ href: '/ssm', label: 'SSM Params', icon: SlidersIcon }
+			],
+			disabled: []
+		}
 	];
 
 	let { onNavigate }: { onNavigate?: () => void } = $props();
@@ -66,37 +84,59 @@
 
 	<!-- Navigation -->
 	<div class="flex-1 overflow-y-auto px-2 py-3">
-		<p class="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/40">Services</p>
+		<p class="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/40">Console</p>
 
-		{#each links as link}
-			{@const Icon = link.icon}
-			<a
-				href={link.href}
-				onclick={onNavigate}
-				class={cn(
-					'group flex items-center gap-2.5 rounded px-2 py-1.5 text-sm transition-colors mb-0.5',
-					isActive(link.href)
-						? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-[inset_2px_0_0_var(--sidebar-primary)]'
-						: 'text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
-				)}
-			>
-				<Icon class={cn('size-4 shrink-0', isActive(link.href) ? 'text-primary' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80')} />
-				<span class="truncate">{link.label}</span>
-			</a>
-		{/each}
+		<a
+			href={dashboardLink.href}
+			onclick={onNavigate}
+			class={cn(
+				'group flex items-center gap-2.5 rounded px-2 py-1.5 text-sm transition-colors mb-3',
+				isActive(dashboardLink.href)
+					? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-[inset_2px_0_0_var(--sidebar-primary)]'
+					: 'text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+			)}
+		>
+			<DashboardIcon class={cn('size-4 shrink-0', isActive(dashboardLink.href) ? 'text-primary' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80')} />
+			<span class="truncate">{dashboardLink.label}</span>
+		</a>
 
-		{#if disabled.length > 0}
-		<div class="my-3 h-px bg-sidebar-border/70"></div>
-		<p class="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/30">Coming Soon</p>
+		{#each groups as group}
+			<div class="mb-3">
+				<div class="mb-1.5 flex items-center justify-between px-2">
+					<p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-sidebar-foreground/40">{group.label}</p>
+					<code class="rounded border border-sidebar-border/50 px-1 py-px font-mono text-[9px] text-sidebar-foreground/35">{group.prefix}</code>
+				</div>
 
-		{#each disabled as item}
-			{@const Icon = item.icon}
-			<div class="flex items-center gap-2.5 rounded px-2 py-1.5 text-sm text-sidebar-foreground/25 mb-0.5">
-				<Icon class="size-4 shrink-0" />
-				<span class="truncate">{item.label}</span>
-				<span class="ml-auto rounded border border-sidebar-border/50 px-1 py-px font-mono text-[9px] text-sidebar-foreground/30">soon</span>
+				{#each group.links as link}
+					{@const Icon = link.icon}
+					<a
+						href={link.href}
+						onclick={onNavigate}
+						class={cn(
+							'group flex items-center gap-2.5 rounded px-2 py-1.5 text-sm transition-colors mb-0.5',
+							isActive(link.href)
+								? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-[inset_2px_0_0_var(--sidebar-primary)]'
+								: 'text-sidebar-foreground/60 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+						)}
+					>
+						<Icon class={cn('size-4 shrink-0', isActive(link.href) ? 'text-primary' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80')} />
+						<span class="truncate">{link.label}</span>
+					</a>
+				{/each}
+
+				{#if group.disabled.length > 0}
+					<div class="mt-1.5 space-y-0.5">
+						{#each group.disabled as item}
+							{@const Icon = item.icon}
+							<div class="flex items-center gap-2.5 rounded px-2 py-1.5 text-sm text-sidebar-foreground/25">
+								<Icon class="size-4 shrink-0" />
+								<span class="truncate">{item.label}</span>
+								<span class="ml-auto rounded border border-sidebar-border/50 px-1 py-px font-mono text-[9px] text-sidebar-foreground/30">soon</span>
+							</div>
+						{/each}
+					</div>
+				{/if}
 			</div>
 		{/each}
-		{/if}
 	</div>
 </nav>

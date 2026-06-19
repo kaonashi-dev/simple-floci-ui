@@ -51,6 +51,18 @@
 		localStorage.setItem('dashboard-recents', JSON.stringify(next));
 	}
 
+	const providerPrefixes = [
+		{ label: 'Azure', prefix: '/azure' },
+		{ label: 'GCP', prefix: '/gcp' },
+		{ label: 'AWS', prefix: '/' }
+	];
+
+	function prefixFor(href: string) {
+		if (href.startsWith('/azure')) return '/azure';
+		if (href.startsWith('/gcp')) return '/gcp';
+		return '/';
+	}
+
 	const cloudStatuses = $derived([
 		{ label: 'AWS', status: data.connection.aws },
 		{ label: 'Azure', status: data.connection.azure },
@@ -102,6 +114,22 @@
 
 	const favServices = $derived(filteredServices.filter((s) => favorites.includes(s.href)));
 	const otherServices = $derived(filteredServices.filter((s) => !favorites.includes(s.href)));
+	const favServiceGroups = $derived(
+		providerPrefixes
+			.map((group) => ({
+				...group,
+				services: favServices.filter((service) => prefixFor(service.href) === group.prefix)
+			}))
+			.filter((group) => group.services.length > 0)
+	);
+	const otherServiceGroups = $derived(
+		providerPrefixes
+			.map((group) => ({
+				...group,
+				services: otherServices.filter((service) => prefixFor(service.href) === group.prefix)
+			}))
+			.filter((group) => group.services.length > 0)
+	);
 
 	const recentServices = $derived(
 		recents
@@ -249,7 +277,10 @@
 						<a href={service.href} onclick={() => trackVisit(service.href)} class="font-medium text-foreground transition-colors hover:text-primary leading-none">
 							{service.label}
 						</a>
-						<p class="mt-0.5 text-xs text-muted-foreground leading-none">{service.subtitle}</p>
+						<div class="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground leading-none">
+							<span>{service.subtitle}</span>
+							<code class="rounded border border-border/60 px-1 py-px font-mono text-[9px] text-muted-foreground/70">{prefixFor(service.href)}</code>
+						</div>
 					</div>
 				</div>
 			</td>
@@ -320,62 +351,89 @@
 
 		<!-- Favorites section -->
 		{#if favServices.length > 0 && !showFavoritesOnly}
-			<div>
-				<p class="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-amber-500/80">
-					<StarIcon class="size-3 fill-amber-500/80" />
-					Favorites
-				</p>
-				<div class="console-table-shell">
-					<table class="w-full text-sm">
-						{@render tableHead()}
-						<tbody>
-							{#each favServices as service}
-								{@render serviceRow(service)}
-							{/each}
-						</tbody>
-					</table>
+			{#each favServiceGroups as group}
+				<div>
+					<p class="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-amber-500/80">
+						<StarIcon class="size-3 fill-amber-500/80" />
+						Favorites / {group.label}
+						<code class="rounded border border-amber-500/30 px-1 py-px font-mono text-[9px] text-amber-500/80">{group.prefix}</code>
+					</p>
+					<div class="console-table-shell">
+						<table class="w-full text-sm">
+							{@render tableHead()}
+							<tbody>
+								{#each group.services as service}
+									{@render serviceRow(service)}
+								{/each}
+							</tbody>
+						</table>
+					</div>
 				</div>
-			</div>
+			{/each}
 		{/if}
 
 		<!-- All / remaining services -->
 		{#if otherServices.length > 0 || filteredServices.length === 0 || showFavoritesOnly}
-			<div>
-				{#if favServices.length > 0 && !showFavoritesOnly}
-					<p class="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">All Services</p>
-				{/if}
+			{#if filteredServices.length === 0}
 				<div class="console-table-shell">
 					<table class="w-full text-sm">
 						{@render tableHead()}
 						<tbody>
-							{#if showFavoritesOnly}
-								{#each favServices as service}
-									{@render serviceRow(service)}
-								{/each}
-							{:else}
-								{#each otherServices as service}
-									{@render serviceRow(service)}
-								{/each}
-							{/if}
-							{#if filteredServices.length === 0}
-								<tr>
-									<td colspan="5" class="px-4 py-8 text-center text-sm text-muted-foreground/50">
-										{#if searchQuery}
-											No services match "{searchQuery}"
-										{:else if showErrorsOnly}
-											No services are reporting errors.
-										{:else if showFavoritesOnly}
-											No favorites — star services to pin them.
-										{:else}
-											No services to display.
-										{/if}
-									</td>
-								</tr>
-							{/if}
+							<tr>
+								<td colspan="5" class="px-4 py-8 text-center text-sm text-muted-foreground/50">
+									{#if searchQuery}
+										No services match "{searchQuery}"
+									{:else if showErrorsOnly}
+										No services are reporting errors.
+									{:else if showFavoritesOnly}
+										No favorites — star services to pin them.
+									{:else}
+										No services to display.
+									{/if}
+								</td>
+							</tr>
 						</tbody>
 					</table>
 				</div>
-			</div>
+			{:else if showFavoritesOnly}
+				{#each favServiceGroups as group}
+					<div>
+						<p class="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+							{group.label}
+							<code class="rounded border border-border/60 px-1 py-px font-mono text-[9px] text-muted-foreground/70">{group.prefix}</code>
+						</p>
+						<div class="console-table-shell">
+							<table class="w-full text-sm">
+								{@render tableHead()}
+								<tbody>
+									{#each group.services as service}
+										{@render serviceRow(service)}
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				{/each}
+			{:else}
+				{#each otherServiceGroups as group}
+					<div>
+						<p class="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+							{favServices.length > 0 ? 'All Services / ' : ''}{group.label}
+							<code class="rounded border border-border/60 px-1 py-px font-mono text-[9px] text-muted-foreground/70">{group.prefix}</code>
+						</p>
+						<div class="console-table-shell">
+							<table class="w-full text-sm">
+								{@render tableHead()}
+								<tbody>
+									{#each group.services as service}
+										{@render serviceRow(service)}
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				{/each}
+			{/if}
 		{/if}
 	</div>
 </div>

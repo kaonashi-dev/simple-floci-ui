@@ -118,6 +118,14 @@ The first multi-cloud phase is browser-direct storage:
 - Azure Blob Storage via Floci-AZ REST routes on port `4577`.
 - GCP Cloud Storage via Floci-GCP REST routes on port `4588`.
 
+Provider routes are intentionally separated by prefix:
+
+- Existing AWS pages stay on the current root-level routes such as `/s3`, `/sqs`, and `/lambda`.
+- Azure pages live under `/azure/*`.
+- GCP pages live under `/gcp/*`.
+
+Shared components are used only for common UI primitives. If a provider service diverges in workflow, capabilities, or data shape, give it its own view under that provider prefix instead of forcing a generic cross-cloud screen.
+
 The other high-use domains are visible as coming soon because they are better served by a local proxy/API phase:
 
 - Messaging: Azure Queue/Service Bus and GCP Pub/Sub.
