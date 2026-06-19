@@ -57,7 +57,7 @@ bun run dev
 Open **http://localhost:5975**. Go to **Settings** and point the endpoints at your local
 instances. Defaults are AWS `http://localhost:4567`, Azure `http://localhost:4577`, and GCP `http://localhost:4588`.
 
-During `bun run dev`, loopback endpoints such as `http://localhost:4545`, `http://localhost:4577`, and `http://localhost:4588` are automatically routed through a same-origin Vite proxy. This avoids browser CORS failures while Floci does not expose CORS flags yet. The values stored in Settings remain the real Floci runtime URLs.
+During `bun run dev`, loopback endpoints such as `http://localhost:4545`, `http://localhost:4577`, and `http://localhost:4588` are automatically routed through a same-origin Vite proxy. This sidesteps browser CORS and Local Network Access friction during local dev, regardless of each runtime's CORS configuration. The values stored in Settings remain the real Floci runtime URLs.
 
 ## Deploy the UI to Railway
 
@@ -70,13 +70,48 @@ The host only serves the built UI — no AWS/Floci config is required on it.
 
 ### What each developer does (one-time)
 
-Because the browser on a public HTTPS page calls services on `localhost`, the Floci runtimes must allow that hosted origin with CORS and Private Network Access headers.
+When you open the hosted UI (a public **HTTPS** page) it makes calls straight to your local Floci runtimes on `http://localhost`. Browsers gate this in two independent ways, and **both** must be satisfied.
 
-The dev-only Vite proxy is not part of the static production build. Until Floci exposes CORS configuration, use a small local CORS proxy in front of Floci for hosted UI sessions, or run the UI with `bun run dev` locally.
+#### 1. CORS — start the Floci runtime with the CORS flags (server side)
+
+Floci core exposes CORS configuration as of **`floci/floci:1.5.26`** (older images such as `1.5.11` predate the feature). Start it with the hosted origin allowed:
+
+```sh
+docker pull floci/floci:1.5.26
+
+docker run --rm \
+  -p 4545:4566 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e 'FLOCI_SECURITY_EXTRA_CORS_ALLOWED_ORIGINS=https://simple-floci-ui-production.up.railway.app,http://localhost:5975' \
+  -e 'FLOCI_SECURITY_EXTRA_CORS_ALLOWED_HEADERS=authorization,content-type,x-amz-content-sha256,x-amz-date,x-amz-security-token,x-amz-target,x-amz-user-agent,amz-sdk-invocation-id,amz-sdk-request' \
+  -e 'FLOCI_SECURITY_EXTRA_CORS_EXPOSE_HEADERS=etag,x-amz-request-id,x-amz-id-2,x-amzn-requestid,content-length,content-type' \
+  floci/floci:1.5.26
+```
+
+- `FLOCI_SECURITY_EXTRA_CORS_ALLOWED_ORIGINS` is comma-separated. Add your own origin too, or use `*` to allow any origin (convenient for local use).
+- `amz-sdk-invocation-id` and `amz-sdk-request` are sent by AWS SDK v3 on every request — without them the `OPTIONS` preflight fails even though the rest of the header list looks correct.
+- Do **not** set `FLOCI_SECURITY_DISABLE_CORS_HEADERS=true` — it turns CORS off.
+- Map the container to whichever host port your **Settings → AWS endpoint** uses (`4545` here, or `4567` for the UI default).
+
+Verify the preflight before touching the UI:
+
+```sh
+curl -i -X OPTIONS 'http://localhost:4545/' \
+  -H 'Origin: https://simple-floci-ui-production.up.railway.app' \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: authorization,x-amz-date,x-amz-content-sha256,content-type'
+# expect a 2xx response carrying: Access-Control-Allow-Origin: https://simple-floci-ui-production.up.railway.app
+```
+
+#### 2. Local Network Access — grant the browser permission (client side)
+
+CORS alone is no longer enough. Since **Chrome 142** (Oct 2025), a public HTTPS page reaching `localhost`/loopback triggers a **"Local network access"** permission prompt. This replaces the old Private Network Access `Access-Control-Allow-Private-Network` header — **there is no server flag for it**, so no Floci setting can grant it for you. Click **Allow** when it appears; if you dismissed or denied it, re-enable via the **lock / site-settings icon → Local network access → Allow** and reload. Once granted, Chrome also relaxes mixed-content for the local target. Edge follows Chrome; Firefox and Safari differ and are generally more permissive for `localhost`.
+
+#### Azure (4577) and GCP (4588)
+
+Floci-AZ and Floci-GCP do not expose global CORS flags yet, so the hosted UI cannot reach them directly. For those providers, run the UI locally with `bun run dev` (same-origin proxy) or put a small local CORS proxy in front of the runtime until upstream CORS support lands.
 
 Then open the hosted URL, confirm/adjust the endpoint in **Settings → Save & test**, and the green indicator should appear. Each developer's session uses their own machine.
-
-> Browser support: works in Chrome, Edge, Firefox and Safari when the local Floci endpoint returns the required CORS headers. If a stricter setup still trips Chrome's Private Network Access, run a small local TLS/CORS proxy in front of Floci.
 
 ## Services
 
