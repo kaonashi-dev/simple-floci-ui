@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { dev } from '$app/environment';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -116,9 +117,14 @@
 			<h2 class="text-sm font-semibold">Floci runtime connections</h2>
 		</div>
 		<p class="text-xs text-muted-foreground/70">
-			The UI talks directly from this browser to your local Floci AWS, Floci-AZ, and Floci-GCP runtimes.
+			The UI talks from this browser to your local Floci AWS, Floci-AZ, and Floci-GCP runtimes.
 			All values are stored only on this device.
 		</p>
+		{#if dev}
+			<p class="rounded border border-amber-500/25 bg-amber-500/8 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+				Local development uses a same-origin proxy for loopback Floci endpoints so the browser is not blocked while Floci does not expose CORS flags.
+			</p>
+		{/if}
 
 		<form
 			method="POST"

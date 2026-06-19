@@ -1,5 +1,9 @@
 import { browser } from '$app/environment';
-import { getGcpConnectionSettings } from '$lib/stores/settings.svelte';
+import {
+	DEFAULT_GCP_CONNECTION,
+	getGcpConnectionSettings,
+	resolveFlociRuntimeEndpoint
+} from '$lib/stores/settings.svelte';
 import type {
 	CloudStorageDownloadedObject,
 	CloudStorageObjectListing,
@@ -10,13 +14,17 @@ import type {
 function resolve() {
 	if (browser) {
 		const s = getGcpConnectionSettings();
+		const endpoint = s.endpoint || DEFAULT_GCP_CONNECTION.endpoint;
 		return {
-			endpoint: s.endpoint || 'http://localhost:4588',
+			endpoint,
+			runtimeEndpoint: resolveFlociRuntimeEndpoint(endpoint),
 			project: s.project || 'floci-local'
 		};
 	}
+	const endpoint = process.env.FLOCI_GCP_ENDPOINT || process.env.FLOCI_GP_ENDPOINT || DEFAULT_GCP_CONNECTION.endpoint;
 	return {
-		endpoint: process.env.FLOCI_GCP_ENDPOINT || process.env.FLOCI_GP_ENDPOINT || 'http://localhost:4588',
+		endpoint,
+		runtimeEndpoint: endpoint,
 		project: process.env.FLOCI_GCP_PROJECT || 'floci-local'
 	};
 }
@@ -30,10 +38,10 @@ export function getGcpProject(): string {
 }
 
 async function gcpFetch(path: string, init: RequestInit = {}, emptyOnNotFound = false): Promise<Response> {
-	const { endpoint } = resolve();
+	const { endpoint, runtimeEndpoint } = resolve();
 	let res: Response;
 	try {
-		res = await fetch(`${endpoint}${path}`, init);
+		res = await fetch(`${runtimeEndpoint}${path}`, init);
 	} catch (error) {
 		throw new Error(`Cannot reach Floci-GCP at ${endpoint}: ${errorMessage(error)}`);
 	}

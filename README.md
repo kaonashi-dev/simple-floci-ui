@@ -39,8 +39,9 @@ in your browser.
 Prerequisites: [Bun](https://bun.sh) and at least one local Floci runtime.
 
 ```sh
-# start a local Floci/LocalStack
-docker run --rm -p 4566:4566 localstack/localstack
+# start your local Floci AWS runtime
+# default UI setting: http://localhost:4567
+# common local Floci core port: http://localhost:4545
 
 # optional: start Floci-AZ for Azure Blob Storage and service health
 docker run --rm -p 4577:4577 floci/floci-az:latest
@@ -56,6 +57,8 @@ bun run dev
 Open **http://localhost:5975**. Go to **Settings** and point the endpoints at your local
 instances. Defaults are AWS `http://localhost:4567`, Azure `http://localhost:4577`, and GCP `http://localhost:4588`.
 
+During `bun run dev`, loopback endpoints such as `http://localhost:4545`, `http://localhost:4577`, and `http://localhost:4588` are automatically routed through a same-origin Vite proxy. This avoids browser CORS failures while Floci does not expose CORS flags yet. The values stored in Settings remain the real Floci runtime URLs.
+
 ## Deploy the UI to Railway
 
 The host only serves the built UI — no AWS/Floci config is required on it.
@@ -67,27 +70,13 @@ The host only serves the built UI — no AWS/Floci config is required on it.
 
 ### What each developer does (one-time)
 
-Because the browser (on a public HTTPS page) calls a service on `localhost`, two browser
-rules apply — both solved by LocalStack's built-in trusted-HTTPS loopback domain plus a
-single CORS env var:
+Because the browser on a public HTTPS page calls services on `localhost`, the Floci runtimes must allow that hosted origin with CORS and Private Network Access headers.
 
-1. **Use the default endpoint** `http://localhost:4567` (Floci's default port).
-   If you're using LocalStack, point it to `http://localhost:4566` in Settings instead.
-2. **Allow the hosted origin** on your LocalStack so CORS/Private-Network checks pass:
+The dev-only Vite proxy is not part of the static production build. Until Floci exposes CORS configuration, use a small local CORS proxy in front of Floci for hosted UI sessions, or run the UI with `bun run dev` locally.
 
-   ```sh
-   EXTRA_CORS_ALLOWED_ORIGINS=https://your-app.up.railway.app \
-     docker run --rm -p 4566:4566 \
-     -e EXTRA_CORS_ALLOWED_ORIGINS=https://your-app.up.railway.app \
-     localstack/localstack
-   ```
+Then open the hosted URL, confirm/adjust the endpoint in **Settings → Save & test**, and the green indicator should appear. Each developer's session uses their own machine.
 
-Then open the hosted URL, confirm/adjust the endpoint in **Settings → Save & test**, and
-the green indicator should appear. Each developer's session uses their own machine.
-
-> Browser support: works in Chrome, Edge, Firefox and Safari via the HTTPS loopback
-> domain. If a stricter setup still trips Chrome's Private Network Access, run a small
-> local TLS/CORS proxy (e.g. Caddy) in front of LocalStack.
+> Browser support: works in Chrome, Edge, Firefox and Safari when the local Floci endpoint returns the required CORS headers. If a stricter setup still trips Chrome's Private Network Access, run a small local TLS/CORS proxy in front of Floci.
 
 ## Services
 

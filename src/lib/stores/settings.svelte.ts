@@ -1,6 +1,7 @@
-import { browser } from '$app/environment';
+import { browser, dev } from '$app/environment';
 
 const STORAGE_KEY = 'floci-connection';
+const DEV_CORS_PROXY_PREFIX = '/__floci-proxy';
 
 export const DEFAULT_AWS_CONNECTION = {
 	endpoint: 'http://localhost:4567',
@@ -125,4 +126,22 @@ export function getAzureConnectionSettings(): AzureConnectionSettings {
 
 export function getGcpConnectionSettings(): GcpConnectionSettings {
 	return getConnectionSettings().gcp;
+}
+
+export function resolveFlociRuntimeEndpoint(endpoint: string): string {
+	if (!browser || !dev || !isLoopbackEndpoint(endpoint)) return endpoint;
+	const target = endpoint.replace(/\/+$/, '');
+	return `${window.location.origin}${DEV_CORS_PROXY_PREFIX}/${encodeURIComponent(target)}`;
+}
+
+function isLoopbackEndpoint(endpoint: string): boolean {
+	try {
+		const url = new URL(endpoint);
+		return (
+			(url.protocol === 'http:' || url.protocol === 'https:') &&
+			['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]'].includes(url.hostname)
+		);
+	} catch {
+		return false;
+	}
 }
