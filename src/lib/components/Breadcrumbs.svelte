@@ -2,7 +2,7 @@
 	let {
 		bucket,
 		prefix,
-		rootHref = '/s3',
+		rootHref = '/aws/s3',
 		rootLabel = 'S3'
 	}: { bucket: string; prefix: string; rootHref?: string; rootLabel?: string } = $props();
 

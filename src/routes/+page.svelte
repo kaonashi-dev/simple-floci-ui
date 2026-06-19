@@ -56,13 +56,13 @@
 	const providerPrefixes = [
 		{ label: 'Azure', prefix: '/azure' },
 		{ label: 'GCP', prefix: '/gcp' },
-		{ label: 'AWS', prefix: '/' }
+		{ label: 'AWS', prefix: '/aws' }
 	];
 
 	function prefixFor(href: string) {
 		if (href.startsWith('/azure')) return '/azure';
 		if (href.startsWith('/gcp')) return '/gcp';
-		return '/';
+		return '/aws';
 	}
 
 	const azureIconMap: Record<AzureServiceIcon, typeof HardDriveIcon> = {
@@ -101,19 +101,19 @@
 			protocols: service.protocols
 		})),
 		{ href: '/gcp/storage', label: 'GCP Storage', subtitle: 'Cloud Storage', description: 'Browse local Floci-GCP buckets and objects.', count: data.counts['gcp-storage']?.count ?? null, error: data.counts['gcp-storage']?.error ?? null, unit: 'bucket', icon: HardDriveIcon, status: 'available', protocols: ['REST', 'JSON'] },
-		{ href: '/sqs', label: 'SQS', subtitle: 'Simple Queue Service', description: 'Inspect message flow and queue depth.', count: data.counts.sqs?.count ?? null, error: data.counts.sqs?.error ?? null, unit: 'queue', icon: MessageSquareIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/s3', label: 'S3', subtitle: 'Simple Storage Service', description: 'Browse objects, prefixes, and uploads.', count: data.counts.s3?.count ?? null, error: data.counts.s3?.error ?? null, unit: 'bucket', icon: HardDriveIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/cognito', label: 'Cognito', subtitle: 'Identity Provider', description: 'Manage local users, groups, and identities.', count: data.counts.cognito?.count ?? null, error: data.counts.cognito?.error ?? null, unit: 'pool', icon: UsersRoundIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/kms', label: 'KMS', subtitle: 'Key Management Service', description: 'Review keys, aliases, and rotation settings.', count: data.counts.kms?.count ?? null, error: data.counts.kms?.error ?? null, unit: 'key', icon: KeyRoundIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/lambda', label: 'Lambda', subtitle: 'Serverless Compute', description: 'List and invoke local Lambda functions.', count: data.counts.lambda?.count ?? null, error: data.counts.lambda?.error ?? null, unit: 'function', icon: SigmaIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/dynamodb', label: 'DynamoDB', subtitle: 'NoSQL Database', description: 'Browse tables and scan items.', count: data.counts.dynamodb?.count ?? null, error: data.counts.dynamodb?.error ?? null, unit: 'table', icon: DatabaseIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/sns', label: 'SNS', subtitle: 'Simple Notification Service', description: 'Manage topics and publish messages.', count: data.counts.sns?.count ?? null, error: data.counts.sns?.error ?? null, unit: 'topic', icon: RadioTowerIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/apigateway', label: 'API Gateway', subtitle: 'REST & HTTP APIs', description: 'Inspect REST and HTTP APIs and their routes.', count: data.counts.apigateway?.count ?? null, error: data.counts.apigateway?.error ?? null, unit: 'REST API', icon: NetworkIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/iam', label: 'IAM', subtitle: 'Identity & Access Management', description: 'Browse users, roles, and local policies.', count: data.counts.iam?.count ?? null, error: data.counts.iam?.error ?? null, unit: 'user', icon: ShieldIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/logs', label: 'CloudWatch Logs', subtitle: 'Log Management', description: 'Browse log groups, streams, and events.', count: data.counts.logs?.count ?? null, error: data.counts.logs?.error ?? null, unit: 'log group', icon: ScrollTextIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/eventbridge', label: 'EventBridge', subtitle: 'Event Bus', description: 'Manage event buses and rules.', count: data.counts.eventbridge?.count ?? null, error: data.counts.eventbridge?.error ?? null, unit: 'bus', icon: ZapIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/secrets', label: 'Secrets Manager', subtitle: 'Secret Storage', description: 'View and manage application secrets.', count: data.counts.secrets?.count ?? null, error: data.counts.secrets?.error ?? null, unit: 'secret', icon: LockIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/ssm', label: 'SSM Params', subtitle: 'Parameter Store', description: 'Browse and update SSM parameters.', count: data.counts.ssm?.count ?? null, error: data.counts.ssm?.error ?? null, unit: 'parameter', icon: SlidersIcon, status: 'available', protocols: ['AWS SDK'] }
+		{ href: '/aws/sqs', label: 'SQS', subtitle: 'Simple Queue Service', description: 'Inspect message flow and queue depth.', count: data.counts.sqs?.count ?? null, error: data.counts.sqs?.error ?? null, unit: 'queue', icon: MessageSquareIcon, status: 'available', protocols: ['AWS SDK'] },
+		{ href: '/aws/s3', label: 'S3', subtitle: 'Simple Storage Service', description: 'Browse objects, prefixes, and uploads.', count: data.counts.s3?.count ?? null, error: data.counts.s3?.error ?? null, unit: 'bucket', icon: HardDriveIcon, status: 'available', protocols: ['AWS SDK'] },
+		{ href: '/aws/cognito', label: 'Cognito', subtitle: 'Identity Provider', description: 'Manage local users, groups, and identities.', count: data.counts.cognito?.count ?? null, error: data.counts.cognito?.error ?? null, unit: 'pool', icon: UsersRoundIcon, status: 'available', protocols: ['AWS SDK'] },
+		{ href: '/aws/kms', label: 'KMS', subtitle: 'Key Management Service', description: 'Review keys, aliases, and rotation settings.', count: data.counts.kms?.count ?? null, error: data.counts.kms?.error ?? null, unit: 'key', icon: KeyRoundIcon, status: 'available', protocols: ['AWS SDK'] },
+		{ href: '/aws/lambda', label: 'Lambda', subtitle: 'Serverless Compute', description: 'List and invoke local Lambda functions.', count: data.counts.lambda?.count ?? null, error: data.counts.lambda?.error ?? null, unit: 'function', icon: SigmaIcon, status: 'available', protocols: ['AWS SDK'] },
+		{ href: '/aws/dynamodb', label: 'DynamoDB', subtitle: 'NoSQL Database', description: 'Browse tables and scan items.', count: data.counts.dynamodb?.count ?? null, error: data.counts.dynamodb?.error ?? null, unit: 'table', icon: DatabaseIcon, status: 'available', protocols: ['AWS SDK'] },
+		{ href: '/aws/sns', label: 'SNS', subtitle: 'Simple Notification Service', description: 'Manage topics and publish messages.', count: data.counts.sns?.count ?? null, error: data.counts.sns?.error ?? null, unit: 'topic', icon: RadioTowerIcon, status: 'available', protocols: ['AWS SDK'] },
+		{ href: '/aws/apigateway', label: 'API Gateway', subtitle: 'REST & HTTP APIs', description: 'Inspect REST and HTTP APIs and their routes.', count: data.counts.apigateway?.count ?? null, error: data.counts.apigateway?.error ?? null, unit: 'REST API', icon: NetworkIcon, status: 'available', protocols: ['AWS SDK'] },
+		{ href: '/aws/iam', label: 'IAM', subtitle: 'Identity & Access Management', description: 'Browse users, roles, and local policies.', count: data.counts.iam?.count ?? null, error: data.counts.iam?.error ?? null, unit: 'user', icon: ShieldIcon, status: 'available', protocols: ['AWS SDK'] },
+		{ href: '/aws/logs', label: 'CloudWatch Logs', subtitle: 'Log Management', description: 'Browse log groups, streams, and events.', count: data.counts.logs?.count ?? null, error: data.counts.logs?.error ?? null, unit: 'log group', icon: ScrollTextIcon, status: 'available', protocols: ['AWS SDK'] },
+		{ href: '/aws/eventbridge', label: 'EventBridge', subtitle: 'Event Bus', description: 'Manage event buses and rules.', count: data.counts.eventbridge?.count ?? null, error: data.counts.eventbridge?.error ?? null, unit: 'bus', icon: ZapIcon, status: 'available', protocols: ['AWS SDK'] },
+		{ href: '/aws/secrets', label: 'Secrets Manager', subtitle: 'Secret Storage', description: 'View and manage application secrets.', count: data.counts.secrets?.count ?? null, error: data.counts.secrets?.error ?? null, unit: 'secret', icon: LockIcon, status: 'available', protocols: ['AWS SDK'] },
+		{ href: '/aws/ssm', label: 'SSM Params', subtitle: 'Parameter Store', description: 'Browse and update SSM parameters.', count: data.counts.ssm?.count ?? null, error: data.counts.ssm?.error ?? null, unit: 'parameter', icon: SlidersIcon, status: 'available', protocols: ['AWS SDK'] }
 	]);
 
 	const comingSoon = [

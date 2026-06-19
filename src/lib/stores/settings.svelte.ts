@@ -1,7 +1,7 @@
-import { browser, dev } from '$app/environment';
+import { browser } from '$app/environment';
+import { FLOCI_PROXY_PREFIX, isLoopbackHost } from '$lib/proxy-shared';
 
 const STORAGE_KEY = 'floci-connection';
-const DEV_CORS_PROXY_PREFIX = '/__floci-proxy';
 
 export const DEFAULT_AWS_CONNECTION = {
 	endpoint: 'http://localhost:4567',
@@ -128,19 +128,24 @@ export function getGcpConnectionSettings(): GcpConnectionSettings {
 	return getConnectionSettings().gcp;
 }
 
+/**
+ * Rewrites a loopback Floci endpoint through the same-origin proxy so the browser
+ * avoids CORS. Only applies when the page itself is served from a loopback host
+ * (`bun run dev` on localhost or `bun run start:local` on 127.0.0.1) — a hosted box
+ * (e.g. Railway) cannot reach the user's localhost, so the endpoint is returned
+ * unchanged for a direct call.
+ */
 export function resolveFlociRuntimeEndpoint(endpoint: string): string {
-	if (!browser || !dev || !isLoopbackEndpoint(endpoint)) return endpoint;
+	if (!browser || !isLoopbackEndpoint(endpoint)) return endpoint;
+	if (!isLoopbackHost(window.location.hostname)) return endpoint;
 	const target = endpoint.replace(/\/+$/, '');
-	return `${window.location.origin}${DEV_CORS_PROXY_PREFIX}/${encodeURIComponent(target)}`;
+	return `${window.location.origin}${FLOCI_PROXY_PREFIX}/${encodeURIComponent(target)}`;
 }
 
 function isLoopbackEndpoint(endpoint: string): boolean {
 	try {
 		const url = new URL(endpoint);
-		return (
-			(url.protocol === 'http:' || url.protocol === 'https:') &&
-			['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]'].includes(url.hostname)
-		);
+		return (url.protocol === 'http:' || url.protocol === 'https:') && isLoopbackHost(url.hostname);
 	} catch {
 		return false;
 	}
