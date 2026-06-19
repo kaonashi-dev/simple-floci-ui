@@ -9,3 +9,7 @@ export type ConnectionStatus = {
 	endpoint: string;
 	error?: string;
 };
+
+export type CloudProvider = 'aws' | 'azure' | 'gcp';
+
+export type MultiCloudConnectionStatus = Record<CloudProvider, ConnectionStatus>;

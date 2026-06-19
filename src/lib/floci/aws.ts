@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import { getConnectionSettings } from '$lib/stores/settings.svelte';
+import { getAwsConnectionSettings } from '$lib/stores/settings.svelte';
 
 /**
  * Resolve the active connection at call time.
@@ -12,7 +12,7 @@ import { getConnectionSettings } from '$lib/stores/settings.svelte';
  */
 function resolve() {
 	if (browser) {
-		const s = getConnectionSettings();
+		const s = getAwsConnectionSettings();
 		return {
 			region: s.region || 'us-east-1',
 			endpoint: s.endpoint || 'http://localhost:4567',

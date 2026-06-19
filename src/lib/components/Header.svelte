@@ -6,9 +6,16 @@
 	import SunIcon from '@lucide/svelte/icons/sun';
 	import { page } from '$app/stores';
 	import { theme } from '$lib/stores/theme.svelte';
-	import type { ConnectionStatus } from '$lib/types/common';
+	import type { MultiCloudConnectionStatus } from '$lib/types/common';
 
-	let { connection, onMenuToggle }: { connection: ConnectionStatus; onMenuToggle?: () => void } = $props();
+	let { connection, onMenuToggle }: { connection: MultiCloudConnectionStatus; onMenuToggle?: () => void } = $props();
+
+	const cloudStatuses = $derived([
+		{ id: 'aws', label: 'AWS', status: connection.aws },
+		{ id: 'azure', label: 'Azure', status: connection.azure },
+		{ id: 'gcp', label: 'GCP', status: connection.gcp }
+	]);
+	const connectedCount = $derived(cloudStatuses.filter((cloud) => cloud.status.ok).length);
 </script>
 
 <header class="flex h-11 shrink-0 items-center gap-3 border-b border-sidebar-border bg-sidebar px-3 text-sidebar-foreground sm:px-4">
@@ -32,7 +39,7 @@
 	<div class="hidden h-4 w-px bg-sidebar-border/60 sm:block"></div>
 
 	<code class="hidden max-w-[28vw] truncate rounded border border-sidebar-border/70 bg-sidebar-accent/35 px-2 py-0.5 font-mono text-[11px] text-sidebar-foreground/55 md:block">
-		{connection.endpoint}
+		{connectedCount}/3 runtimes connected
 	</code>
 
 	<div class="ml-auto flex items-center gap-2">
@@ -59,16 +66,24 @@
 			<SettingsIcon class="size-3.5" />
 		</a>
 
-		{#if connection.ok}
-			<div class="flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-1 text-[11px]">
-				<span class="pulse-dot size-1.5 rounded-full bg-emerald-500"></span>
-				<span class="hidden text-emerald-300/80 sm:block">Connected</span>
-			</div>
-		{:else}
-			<div class="flex items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/12 px-2.5 py-1 text-[11px]">
-				<span class="size-1.5 rounded-full bg-destructive"></span>
-				<span class="hidden text-destructive/80 sm:block">Disconnected</span>
-			</div>
-		{/if}
+		<div class="hidden items-center gap-1 sm:flex">
+			{#each cloudStatuses as cloud}
+				<div
+					class="flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px]
+						{cloud.status.ok
+							? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300/80'
+							: 'border-destructive/30 bg-destructive/12 text-destructive/80'}"
+					title={`${cloud.label}: ${cloud.status.endpoint}${cloud.status.error ? ` - ${cloud.status.error}` : ''}`}
+				>
+					<span class="size-1.5 rounded-full {cloud.status.ok ? 'bg-emerald-500' : 'bg-destructive'}"></span>
+					<span>{cloud.label}</span>
+				</div>
+			{/each}
+		</div>
+
+		<div class="flex items-center gap-1.5 rounded-full border border-sidebar-border bg-sidebar-accent/35 px-2.5 py-1 text-[11px] text-sidebar-foreground/70 sm:hidden">
+			<span class="size-1.5 rounded-full {connectedCount === 3 ? 'bg-emerald-500' : connectedCount > 0 ? 'bg-amber-500' : 'bg-destructive'}"></span>
+			<span>{connectedCount}/3</span>
+		</div>
 	</div>
 </header>

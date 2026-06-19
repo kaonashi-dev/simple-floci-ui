@@ -51,7 +51,17 @@
 		localStorage.setItem('dashboard-recents', JSON.stringify(next));
 	}
 
+	const cloudStatuses = $derived([
+		{ label: 'AWS', status: data.connection.aws },
+		{ label: 'Azure', status: data.connection.azure },
+		{ label: 'GCP', status: data.connection.gcp }
+	]);
+	const connectedClouds = $derived(cloudStatuses.filter((cloud) => cloud.status.ok).length);
+	const disconnectedClouds = $derived(cloudStatuses.filter((cloud) => !cloud.status.ok));
+
 	const services = $derived([
+		{ href: '/azure/storage', label: 'Azure Blob', subtitle: 'Blob Storage', description: 'Browse local Floci-AZ containers and blobs.', count: data.counts['azure-storage']?.count ?? null, error: data.counts['azure-storage']?.error ?? null, unit: 'container', icon: HardDriveIcon },
+		{ href: '/gcp/storage', label: 'GCP Storage', subtitle: 'Cloud Storage', description: 'Browse local Floci-GCP buckets and objects.', count: data.counts['gcp-storage']?.count ?? null, error: data.counts['gcp-storage']?.error ?? null, unit: 'bucket', icon: HardDriveIcon },
 		{ href: '/sqs', label: 'SQS', subtitle: 'Simple Queue Service', description: 'Inspect message flow and queue depth.', count: data.counts.sqs?.count ?? null, error: data.counts.sqs?.error ?? null, unit: 'queue', icon: MessageSquareIcon },
 		{ href: '/s3', label: 'S3', subtitle: 'Simple Storage Service', description: 'Browse objects, prefixes, and uploads.', count: data.counts.s3?.count ?? null, error: data.counts.s3?.error ?? null, unit: 'bucket', icon: HardDriveIcon },
 		{ href: '/cognito', label: 'Cognito', subtitle: 'Identity Provider', description: 'Manage local users, groups, and identities.', count: data.counts.cognito?.count ?? null, error: data.counts.cognito?.error ?? null, unit: 'pool', icon: UsersRoundIcon },
@@ -66,6 +76,13 @@
 		{ href: '/secrets', label: 'Secrets Manager', subtitle: 'Secret Storage', description: 'View and manage application secrets.', count: data.counts.secrets?.count ?? null, error: data.counts.secrets?.error ?? null, unit: 'secret', icon: LockIcon },
 		{ href: '/ssm', label: 'SSM Params', subtitle: 'Parameter Store', description: 'Browse and update SSM parameters.', count: data.counts.ssm?.count ?? null, error: data.counts.ssm?.error ?? null, unit: 'parameter', icon: SlidersIcon }
 	]);
+
+	const comingSoon = [
+		{ label: 'Messaging', detail: 'Azure Queue/Service Bus and GCP Pub/Sub', icon: MessageSquareIcon },
+		{ label: 'Database', detail: 'Azure Cosmos DB and GCP Firestore/Datastore', icon: DatabaseIcon },
+		{ label: 'Serverless', detail: 'Azure Functions and GCP Cloud Functions/Run', icon: SigmaIcon },
+		{ label: 'Secrets & Keys', detail: 'Azure Key Vault and GCP Secret Manager/KMS', icon: LockIcon }
+	];
 
 	const totalResources = $derived(services.reduce((s, x) => s + (x.count ?? 0), 0));
 	const erroringCount = $derived(services.filter((s) => s.error).length);
@@ -98,28 +115,46 @@
 	<div class="page-header">
 		<div>
 			<p class="console-subtle-label">Overview</p>
-			<h1 class="mt-1.5 page-title">Local AWS Console</h1>
-			<p class="mt-1 page-subtitle">Operational view for Floci local cloud resources.</p>
+			<h1 class="mt-1.5 page-title">Local Multi-Cloud Console</h1>
+			<p class="mt-1 page-subtitle">Operational view for Floci AWS, Azure, and GCP local resources.</p>
 		</div>
 
 		<!-- Connection status card -->
-		<div class="console-panel flex min-w-64 items-center gap-3 p-3">
+		<div class="console-panel min-w-72 space-y-2 p-3">
+			<div class="flex items-center gap-3">
 			<span class="flex size-8 shrink-0 items-center justify-center rounded border border-border bg-muted/50">
-				<ZapIcon class="size-4 {data.connection.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}" />
+				<ZapIcon class="size-4 {connectedClouds === 3 ? 'text-emerald-600 dark:text-emerald-400' : connectedClouds > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-destructive'}" />
 			</span>
 			<div class="min-w-0">
-				<p class="text-sm font-medium leading-none">{data.connection.ok ? 'Connected' : 'Disconnected'}</p>
-				<code class="mt-1 block truncate font-mono text-[11px] text-muted-foreground">{data.connection.endpoint}</code>
+				<p class="text-sm font-medium leading-none">{connectedClouds}/3 runtimes connected</p>
+				<p class="mt-1 text-[11px] text-muted-foreground">Configured in Settings per browser.</p>
+			</div>
+			</div>
+			<div class="grid grid-cols-3 gap-1.5">
+				{#each cloudStatuses as cloud}
+					<div
+						class="rounded border px-2 py-1 text-[10px]
+							{cloud.status.ok
+								? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+								: 'border-destructive/25 bg-destructive/8 text-destructive'}"
+						title={`${cloud.status.endpoint}${cloud.status.error ? ` - ${cloud.status.error}` : ''}`}
+					>
+						<span class="font-semibold">{cloud.label}</span>
+						<span class="ml-1 opacity-75">{cloud.status.ok ? 'ok' : 'off'}</span>
+					</div>
+				{/each}
 			</div>
 		</div>
 	</div>
 
-	{#if !data.connection.ok}
+	{#if disconnectedClouds.length > 0}
 		<div class="flex items-start gap-3 rounded border border-destructive/30 bg-destructive/8 px-4 py-3">
 			<ShieldAlertIcon class="mt-0.5 size-4 shrink-0 text-destructive" />
 			<div class="min-w-0">
-				<p class="text-sm font-medium text-destructive">Floci is not reachable</p>
-				<p class="mt-0.5 break-words font-mono text-xs text-destructive/65">Check that the Floci container is running at {data.connection.endpoint}</p>
+				<p class="text-sm font-medium text-destructive">Some Floci runtimes are not reachable</p>
+				<p class="mt-0.5 break-words font-mono text-xs text-destructive/65">
+					{disconnectedClouds.map((cloud) => `${cloud.label}: ${cloud.status.endpoint}`).join(' | ')}
+				</p>
 			</div>
 		</div>
 	{/if}
@@ -172,6 +207,24 @@
 			</div>
 		</div>
 	{/if}
+
+	<div class="grid gap-2.5 md:grid-cols-4">
+		{#each comingSoon as item}
+			{@const Icon = item.icon}
+			<div class="console-surface p-3 opacity-80">
+				<div class="flex items-center gap-2">
+					<span class="flex size-7 shrink-0 items-center justify-center rounded border border-border bg-muted/40">
+						<Icon class="size-3.5 text-muted-foreground" />
+					</span>
+					<div class="min-w-0">
+						<p class="text-xs font-semibold text-foreground">{item.label}</p>
+						<p class="truncate text-[10px] text-muted-foreground" title={item.detail}>{item.detail}</p>
+					</div>
+				</div>
+				<p class="mt-2 inline-flex rounded border border-sidebar-border/50 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">proxy/API phase</p>
+			</div>
+		{/each}
+	</div>
 
 	<!-- Shared row snippet -->
 	{#snippet serviceRow(service: (typeof services)[number])}
