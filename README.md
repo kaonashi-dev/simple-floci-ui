@@ -126,13 +126,13 @@ docker pull floci/floci:1.5.26
 docker run --rm \
   -p 4545:4566 \
   -v /var/run/docker.sock:/var/run/docker.sock \
-  -e 'FLOCI_SECURITY_EXTRA_CORS_ALLOWED_ORIGINS=https://simple-floci-ui-production.up.railway.app,http://localhost:5975' \
+  -e 'FLOCI_SECURITY_EXTRA_CORS_ALLOWED_ORIGINS=https://simple-floci-ui.xyz,http://localhost:5975' \
   -e 'FLOCI_SECURITY_EXTRA_CORS_ALLOWED_HEADERS=authorization,content-type,x-amz-content-sha256,x-amz-date,x-amz-security-token,x-amz-target,x-amz-user-agent,amz-sdk-invocation-id,amz-sdk-request' \
   -e 'FLOCI_SECURITY_EXTRA_CORS_EXPOSE_HEADERS=etag,x-amz-request-id,x-amz-id-2,x-amzn-requestid,content-length,content-type' \
   floci/floci:1.5.26
 ```
 
-- `FLOCI_SECURITY_EXTRA_CORS_ALLOWED_ORIGINS` is comma-separated. **Prefer enumerating explicit origins** — the hosted URL plus your localhost (e.g. `https://simple-floci-ui-production.up.railway.app,http://localhost:5975`). Avoid `*`: it lets **any** website you visit reach your local Floci runtime. The risk is low because it is local test data (and you should never put real credentials here — see the security note above), but it is not best practice; reserve `*` for throwaway local use only.
+- `FLOCI_SECURITY_EXTRA_CORS_ALLOWED_ORIGINS` is comma-separated. **Prefer enumerating explicit origins** — the hosted URL plus your localhost (e.g. `https://simple-floci-ui.xyz,http://localhost:5975`). Avoid `*`: it lets **any** website you visit reach your local Floci runtime. The risk is low because it is local test data (and you should never put real credentials here — see the security note above), but it is not best practice; reserve `*` for throwaway local use only.
 - `amz-sdk-invocation-id` and `amz-sdk-request` are sent by AWS SDK v3 on every request — without them the `OPTIONS` preflight fails even though the rest of the header list looks correct.
 - Do **not** set `FLOCI_SECURITY_DISABLE_CORS_HEADERS=true` — it turns CORS off.
 - Map the container to whichever host port your **Settings → AWS endpoint** uses (`4545` here, or `4567` for the UI default).
@@ -141,10 +141,10 @@ Verify the preflight before touching the UI:
 
 ```sh
 curl -i -X OPTIONS 'http://localhost:4545/' \
-  -H 'Origin: https://simple-floci-ui-production.up.railway.app' \
+  -H 'Origin: https://simple-floci-ui.xyz' \
   -H 'Access-Control-Request-Method: POST' \
   -H 'Access-Control-Request-Headers: authorization,x-amz-date,x-amz-content-sha256,content-type'
-# expect a 2xx response carrying: Access-Control-Allow-Origin: https://simple-floci-ui-production.up.railway.app
+# expect a 2xx response carrying: Access-Control-Allow-Origin: https://simple-floci-ui.xyz
 ```
 
 #### 2. Local Network Access — grant the browser permission (client side)
