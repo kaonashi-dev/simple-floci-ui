@@ -21,6 +21,7 @@
 	import XIcon from '@lucide/svelte/icons/x';
 	import ZapIcon from '@lucide/svelte/icons/zap';
 	import { AZURE_SERVICES, type AzureServiceIcon } from '$lib/floci/azure-catalog';
+	import { GCP_SERVICES, type GcpServiceIcon } from '$lib/floci/gcp-catalog';
 
 	let { data } = $props();
 
@@ -79,6 +80,18 @@
 		identity: UsersRoundIcon
 	};
 
+	const gcpIconMap: Record<GcpServiceIcon, typeof HardDriveIcon> = {
+		storage: HardDriveIcon,
+		messaging: MessageSquareIcon,
+		database: DatabaseIcon,
+		serverless: SigmaIcon,
+		security: KeyRoundIcon,
+		identity: UsersRoundIcon,
+		containers: BoxesIcon,
+		compute: ZapIcon,
+		observability: ScrollTextIcon
+	};
+
 	const cloudStatuses = $derived([
 		{ label: 'AWS', status: data.connection.aws },
 		{ label: 'Azure', status: data.connection.azure },
@@ -100,7 +113,18 @@
 			status: service.status,
 			protocols: service.protocols
 		})),
-		{ href: '/gcp/storage', label: 'GCP Storage', subtitle: 'Cloud Storage', description: 'Browse local Floci-GCP buckets and objects.', count: data.counts['gcp-storage']?.count ?? null, error: data.counts['gcp-storage']?.error ?? null, unit: 'bucket', icon: HardDriveIcon, status: 'available', protocols: ['REST', 'JSON'] },
+		...GCP_SERVICES.map((service) => ({
+			href: service.route,
+			label: service.name,
+			subtitle: service.category,
+			description: service.description,
+			count: service.countKey ? data.counts[service.countKey]?.count ?? null : null,
+			error: service.countKey ? data.counts[service.countKey]?.error ?? null : null,
+			unit: service.unit ?? 'resource',
+			icon: gcpIconMap[service.icon],
+			status: service.status,
+			protocols: service.protocols
+		})),
 		{ href: '/aws/sqs', label: 'SQS', subtitle: 'Simple Queue Service', description: 'Inspect message flow and queue depth.', count: data.counts.sqs?.count ?? null, error: data.counts.sqs?.error ?? null, unit: 'queue', icon: MessageSquareIcon, status: 'available', protocols: ['AWS SDK'] },
 		{ href: '/aws/s3', label: 'S3', subtitle: 'Simple Storage Service', description: 'Browse objects, prefixes, and uploads.', count: data.counts.s3?.count ?? null, error: data.counts.s3?.error ?? null, unit: 'bucket', icon: HardDriveIcon, status: 'available', protocols: ['AWS SDK'] },
 		{ href: '/aws/cognito', label: 'Cognito', subtitle: 'Identity Provider', description: 'Manage local users, groups, and identities.', count: data.counts.cognito?.count ?? null, error: data.counts.cognito?.error ?? null, unit: 'pool', icon: UsersRoundIcon, status: 'available', protocols: ['AWS SDK'] },
@@ -115,13 +139,6 @@
 		{ href: '/aws/secrets', label: 'Secrets Manager', subtitle: 'Secret Storage', description: 'View and manage application secrets.', count: data.counts.secrets?.count ?? null, error: data.counts.secrets?.error ?? null, unit: 'secret', icon: LockIcon, status: 'available', protocols: ['AWS SDK'] },
 		{ href: '/aws/ssm', label: 'SSM Params', subtitle: 'Parameter Store', description: 'Browse and update SSM parameters.', count: data.counts.ssm?.count ?? null, error: data.counts.ssm?.error ?? null, unit: 'parameter', icon: SlidersIcon, status: 'available', protocols: ['AWS SDK'] }
 	]);
-
-	const comingSoon = [
-		{ label: 'Messaging', detail: 'Azure Queue/Service Bus and GCP Pub/Sub', icon: MessageSquareIcon },
-		{ label: 'Database', detail: 'Azure Cosmos DB and GCP Firestore/Datastore', icon: DatabaseIcon },
-		{ label: 'Serverless', detail: 'Azure Functions and GCP Cloud Functions/Run', icon: SigmaIcon },
-		{ label: 'Secrets & Keys', detail: 'Azure Key Vault and GCP Secret Manager/KMS', icon: LockIcon }
-	];
 
 	const totalResources = $derived(services.reduce((s, x) => s + (x.count ?? 0), 0));
 	const erroringCount = $derived(services.filter((s) => s.error).length);
@@ -264,24 +281,6 @@
 			</div>
 		</div>
 	{/if}
-
-	<div class="grid gap-2.5 md:grid-cols-4">
-		{#each comingSoon as item}
-			{@const Icon = item.icon}
-			<div class="console-surface p-3 opacity-80">
-				<div class="flex items-center gap-2">
-					<span class="flex size-7 shrink-0 items-center justify-center rounded border border-border bg-muted/40">
-						<Icon class="size-3.5 text-muted-foreground" />
-					</span>
-					<div class="min-w-0">
-						<p class="text-xs font-semibold text-foreground">{item.label}</p>
-						<p class="truncate text-[10px] text-muted-foreground" title={item.detail}>{item.detail}</p>
-					</div>
-				</div>
-				<p class="mt-2 inline-flex rounded border border-sidebar-border/50 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">proxy/API phase</p>
-			</div>
-		{/each}
-	</div>
 
 	<!-- Shared row snippet -->
 	{#snippet serviceRow(service: (typeof services)[number])}
