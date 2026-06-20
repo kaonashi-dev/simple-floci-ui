@@ -144,14 +144,17 @@ function containerPath(containerName: string): string {
 }
 
 function parseContainers(xml: string): CloudStorageResource[] {
-	const matches = xml.matchAll(/<Container>\s*<Name>([^<]+)<\/Name>[\s\S]*?(?:<Last-Modified>([^<]+)<\/Last-Modified>)?[\s\S]*?<\/Container>/g);
-	return [...matches].map((match) => {
-		const name = decodeXml(match[1]);
+	const matches = xml.matchAll(/<Container>[\s\S]*?<\/Container>/g);
+	return [...matches].flatMap((match) => {
+		const containerXml = match[0];
+		const rawName = xmlValue(containerXml, 'Name');
+		if (!rawName) return [];
+		const name = decodeXml(rawName);
 		return {
 			id: name,
 			name,
 			type: 'container' as const,
-			createdAt: match[2] ? decodeXml(match[2]) : null,
+			createdAt: xmlValue(containerXml, 'Last-Modified') ?? null,
 			region: null,
 			metadata: { provider: 'azure', storageService: 'blob' }
 		};
