@@ -13,7 +13,7 @@ import {
 	SendMessageCommand,
 	SQSClient
 } from '@aws-sdk/client-sqs';
-import { createQueue, deleteMessage, deleteQueue, getQueueAttributes, getQueueUrl, listQueues, purgeQueue, receiveMessages, sendMessage, setQueueAttributes } from '$lib/floci/sqs';
+import { createQueue, deleteMessage, deleteQueue, getQueueAttributes, getQueueMetrics, getQueueUrl, listQueues, purgeQueue, receiveMessages, sendMessage, setQueueAttributes } from '$lib/floci/sqs';
 
 const sqsMock = mockClient(SQSClient);
 
@@ -103,6 +103,41 @@ describe('sqs service', () => {
 		expect(sqsMock.commandCalls(SetQueueAttributesCommand)[0].args[0].input).toEqual({ QueueUrl: 'queue-url', Attributes: { VisibilityTimeout: '60' } });
 		expect(sqsMock.commandCalls(DeleteMessageCommand)[0].args[0].input).toEqual({ QueueUrl: 'queue-url', ReceiptHandle: 'receipt' });
 		expect(sqsMock.commandCalls(PurgeQueueCommand)[0].args[0].input).toEqual({ QueueUrl: 'queue-url' });
+	});
+
+	it('reads a numeric depth snapshot for live metrics', async () => {
+		sqsMock.on(GetQueueAttributesCommand).resolves({
+			Attributes: {
+				ApproximateNumberOfMessages: '7',
+				ApproximateNumberOfMessagesNotVisible: '3',
+				ApproximateNumberOfMessagesDelayed: '1'
+			}
+		});
+
+		await expect(getQueueMetrics('queue-url')).resolves.toEqual({
+			visible: 7,
+			notVisible: 3,
+			delayed: 1
+		});
+
+		expect(sqsMock.commandCalls(GetQueueAttributesCommand)[0].args[0].input).toEqual({
+			QueueUrl: 'queue-url',
+			AttributeNames: [
+				'ApproximateNumberOfMessages',
+				'ApproximateNumberOfMessagesNotVisible',
+				'ApproximateNumberOfMessagesDelayed'
+			]
+		});
+	});
+
+	it('defaults missing depth attributes to zero', async () => {
+		sqsMock.on(GetQueueAttributesCommand).resolves({ Attributes: {} });
+
+		await expect(getQueueMetrics('queue-url')).resolves.toEqual({
+			visible: 0,
+			notVisible: 0,
+			delayed: 0
+		});
 	});
 
 	it('sends only valid message attributes', async () => {

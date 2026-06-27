@@ -123,6 +123,10 @@
 			<span class="truncate font-medium text-foreground">{data.name}</span>
 			<span class="text-border">·</span>
 			<a
+				href="/aws/sqs/{encodeURIComponent(data.name)}/metrics"
+				class="rounded px-1.5 py-1 transition-colors hover:bg-muted hover:text-foreground"
+			>Metrics</a>
+			<a
 				href="/aws/sqs/{encodeURIComponent(data.name)}/history"
 				class="rounded px-1.5 py-1 transition-colors hover:bg-muted hover:text-foreground"
 			>History</a>

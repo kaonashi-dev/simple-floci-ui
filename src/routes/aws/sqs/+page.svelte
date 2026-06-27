@@ -9,10 +9,32 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import ListToolbar from '$lib/components/ListToolbar.svelte';
+	import Sparkline from '$lib/components/charts/Sparkline.svelte';
 	import { clientAction } from '$lib/utils/clientAction';
 	import { createQueue, deleteQueue } from '$lib/floci/sqs';
+	import { loadSnapshots } from '$lib/floci/sqs-snapshots';
+	import { buildSnapshotThroughput } from '$lib/floci/sqs-metrics';
 
 	let { data } = $props();
+
+	// Per-queue activity sparkline (enqueued vs dequeued) derived from the depth
+	// snapshots collected on each queue's metrics page (stored in localStorage).
+	const nowMs = Date.now();
+	const sparks = $derived.by(() => {
+		const m = new Map<string, { enqueued: number[]; dequeued: number[] }>();
+		for (const q of data.queues) {
+			const buckets = buildSnapshotThroughput(loadSnapshots(q.name), {
+				window: 'all',
+				nowMs,
+				targetBuckets: 24
+			});
+			m.set(q.name, {
+				enqueued: buckets.map((b) => b.enqueued),
+				dequeued: buckets.map((b) => b.dequeued)
+			});
+		}
+		return m;
+	});
 
 	let showCreate = $state(false);
 	let isFifo = $state(false);
@@ -141,6 +163,7 @@
 						<th class="table-th-right w-28">Available</th>
 						<th class="table-th-right w-28">In-Flight</th>
 						<th class="table-th-right w-28">Delayed</th>
+						<th class="table-th w-32">Activity</th>
 						<th class="table-th-right w-32">Actions</th>
 					</tr>
 				</thead>
@@ -174,10 +197,28 @@
 							<td class="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">
 								{queue.approximateNumberOfMessagesDelayed ?? '—'}
 							</td>
+							<td class="px-4 py-3">
+								<a
+									href="/aws/sqs/{encodeURIComponent(queue.name)}/metrics"
+									class="inline-block rounded transition-opacity hover:opacity-80"
+									title="View metrics for {queue.name}"
+									aria-label="View metrics for {queue.name}"
+								>
+									<Sparkline
+										series={[
+											{ color: '#0ea5e9', values: sparks.get(queue.name)?.enqueued ?? [] },
+											{ color: '#10b981', values: sparks.get(queue.name)?.dequeued ?? [] }
+										]}
+									/>
+								</a>
+							</td>
 							<td class="px-4 py-3 text-right">
 								<div class="flex items-center justify-end gap-1">
 									<Button variant="ghost" size="sm" class="h-7 px-2 text-xs" href="/aws/sqs/{encodeURIComponent(queue.name)}">
 										Open
+									</Button>
+									<Button variant="ghost" size="sm" class="h-7 px-2 text-xs" href="/aws/sqs/{encodeURIComponent(queue.name)}/metrics">
+										Metrics
 									</Button>
 									<Button
 										variant="ghost"
@@ -193,7 +234,7 @@
 					{/each}
 					{#if filtered.length === 0 && data.queues.length > 0}
 						<tr>
-							<td colspan="6" class="px-4 py-8 text-center text-sm text-muted-foreground/60">
+							<td colspan="7" class="px-4 py-8 text-center text-sm text-muted-foreground/60">
 								No queues match "{search}"
 							</td>
 						</tr>
