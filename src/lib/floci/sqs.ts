@@ -16,6 +16,7 @@ import {
 import { makeClient, paginateAll } from './aws';
 import type {
 	SqsQueueSummary,
+	SqsQueueMetrics,
 	SqsMessage,
 	SqsCreateQueueOptions,
 	SqsSendOptions,
@@ -70,6 +71,30 @@ export async function listQueues(): Promise<SqsQueueSummary[]> {
 export async function getQueueUrl(name: string): Promise<string> {
 	const res = await sqs.send(new GetQueueUrlCommand({ QueueName: name }));
 	return res.QueueUrl!;
+}
+
+/**
+ * Lightweight numeric depth snapshot for live metrics polling. Fetches only the
+ * three approximate-count attributes (not "All"), so it is cheap to call on an
+ * interval while the metrics page is open.
+ */
+export async function getQueueMetrics(queueUrl: string): Promise<SqsQueueMetrics> {
+	const res = await sqs.send(
+		new GetQueueAttributesCommand({
+			QueueUrl: queueUrl,
+			AttributeNames: [
+				QueueAttributeName.ApproximateNumberOfMessages,
+				QueueAttributeName.ApproximateNumberOfMessagesNotVisible,
+				QueueAttributeName.ApproximateNumberOfMessagesDelayed
+			]
+		})
+	);
+	const a = res.Attributes ?? {};
+	return {
+		visible: Number(a.ApproximateNumberOfMessages ?? 0),
+		notVisible: Number(a.ApproximateNumberOfMessagesNotVisible ?? 0),
+		delayed: Number(a.ApproximateNumberOfMessagesDelayed ?? 0)
+	};
 }
 
 export async function getQueueAttributes(queueUrl: string): Promise<Record<string, string>> {
