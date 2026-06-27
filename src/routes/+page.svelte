@@ -1,27 +1,13 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
-	import BoxesIcon from '@lucide/svelte/icons/boxes';
 	import ClockIcon from '@lucide/svelte/icons/clock';
-	import DatabaseIcon from '@lucide/svelte/icons/database';
-	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
-	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
-	import LockIcon from '@lucide/svelte/icons/lock';
-	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
-	import NetworkIcon from '@lucide/svelte/icons/network';
-	import RadioTowerIcon from '@lucide/svelte/icons/radio-tower';
-	import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
 	import SearchIcon from '@lucide/svelte/icons/search';
 	import ShieldAlertIcon from '@lucide/svelte/icons/shield-alert';
-	import ShieldIcon from '@lucide/svelte/icons/shield';
-	import SigmaIcon from '@lucide/svelte/icons/sigma';
-	import SlidersIcon from '@lucide/svelte/icons/sliders';
 	import StarIcon from '@lucide/svelte/icons/star';
-	import UsersRoundIcon from '@lucide/svelte/icons/users-round';
 	import XIcon from '@lucide/svelte/icons/x';
 	import ZapIcon from '@lucide/svelte/icons/zap';
-	import { AZURE_SERVICES, type AzureServiceIcon } from '$lib/floci/azure-catalog';
-	import { GCP_SERVICES, type GcpServiceIcon } from '$lib/floci/gcp-catalog';
+	import { ALL_SERVICES, serviceIcons } from '$lib/catalog';
 
 	let { data } = $props();
 
@@ -66,32 +52,6 @@
 		return '/aws';
 	}
 
-	const azureIconMap: Record<AzureServiceIcon, typeof HardDriveIcon> = {
-		storage: HardDriveIcon,
-		messaging: MessageSquareIcon,
-		database: DatabaseIcon,
-		serverless: SigmaIcon,
-		config: SlidersIcon,
-		security: KeyRoundIcon,
-		networking: NetworkIcon,
-		compute: ZapIcon,
-		containers: BoxesIcon,
-		observability: ScrollTextIcon,
-		identity: UsersRoundIcon
-	};
-
-	const gcpIconMap: Record<GcpServiceIcon, typeof HardDriveIcon> = {
-		storage: HardDriveIcon,
-		messaging: MessageSquareIcon,
-		database: DatabaseIcon,
-		serverless: SigmaIcon,
-		security: KeyRoundIcon,
-		identity: UsersRoundIcon,
-		containers: BoxesIcon,
-		compute: ZapIcon,
-		observability: ScrollTextIcon
-	};
-
 	const cloudStatuses = $derived([
 		{ label: 'AWS', status: data.connection.aws },
 		{ label: 'Azure', status: data.connection.azure },
@@ -100,45 +60,20 @@
 	const connectedClouds = $derived(cloudStatuses.filter((cloud) => cloud.status.ok).length);
 	const disconnectedClouds = $derived(cloudStatuses.filter((cloud) => !cloud.status.ok));
 
-	const services = $derived([
-		...AZURE_SERVICES.map((service) => ({
+	const services = $derived(
+		ALL_SERVICES.map((service) => ({
 			href: service.route,
 			label: service.name,
-			subtitle: service.category,
+			subtitle: service.subtitle ?? service.category,
 			description: service.description,
 			count: service.countKey ? data.counts[service.countKey]?.count ?? null : null,
 			error: service.countKey ? data.counts[service.countKey]?.error ?? null : null,
 			unit: service.unit ?? 'resource',
-			icon: azureIconMap[service.icon],
+			icon: serviceIcons[service.icon],
 			status: service.status,
 			protocols: service.protocols
-		})),
-		...GCP_SERVICES.map((service) => ({
-			href: service.route,
-			label: service.name,
-			subtitle: service.category,
-			description: service.description,
-			count: service.countKey ? data.counts[service.countKey]?.count ?? null : null,
-			error: service.countKey ? data.counts[service.countKey]?.error ?? null : null,
-			unit: service.unit ?? 'resource',
-			icon: gcpIconMap[service.icon],
-			status: service.status,
-			protocols: service.protocols
-		})),
-		{ href: '/aws/sqs', label: 'SQS', subtitle: 'Simple Queue Service', description: 'Inspect message flow and queue depth.', count: data.counts.sqs?.count ?? null, error: data.counts.sqs?.error ?? null, unit: 'queue', icon: MessageSquareIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/aws/s3', label: 'S3', subtitle: 'Simple Storage Service', description: 'Browse objects, prefixes, and uploads.', count: data.counts.s3?.count ?? null, error: data.counts.s3?.error ?? null, unit: 'bucket', icon: HardDriveIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/aws/cognito', label: 'Cognito', subtitle: 'Identity Provider', description: 'Manage local users, groups, and identities.', count: data.counts.cognito?.count ?? null, error: data.counts.cognito?.error ?? null, unit: 'pool', icon: UsersRoundIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/aws/kms', label: 'KMS', subtitle: 'Key Management Service', description: 'Review keys, aliases, and rotation settings.', count: data.counts.kms?.count ?? null, error: data.counts.kms?.error ?? null, unit: 'key', icon: KeyRoundIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/aws/lambda', label: 'Lambda', subtitle: 'Serverless Compute', description: 'List and invoke local Lambda functions.', count: data.counts.lambda?.count ?? null, error: data.counts.lambda?.error ?? null, unit: 'function', icon: SigmaIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/aws/dynamodb', label: 'DynamoDB', subtitle: 'NoSQL Database', description: 'Browse tables and scan items.', count: data.counts.dynamodb?.count ?? null, error: data.counts.dynamodb?.error ?? null, unit: 'table', icon: DatabaseIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/aws/sns', label: 'SNS', subtitle: 'Simple Notification Service', description: 'Manage topics and publish messages.', count: data.counts.sns?.count ?? null, error: data.counts.sns?.error ?? null, unit: 'topic', icon: RadioTowerIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/aws/apigateway', label: 'API Gateway', subtitle: 'REST & HTTP APIs', description: 'Inspect REST and HTTP APIs and their routes.', count: data.counts.apigateway?.count ?? null, error: data.counts.apigateway?.error ?? null, unit: 'REST API', icon: NetworkIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/aws/iam', label: 'IAM', subtitle: 'Identity & Access Management', description: 'Browse users, roles, and local policies.', count: data.counts.iam?.count ?? null, error: data.counts.iam?.error ?? null, unit: 'user', icon: ShieldIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/aws/logs', label: 'CloudWatch Logs', subtitle: 'Log Management', description: 'Browse log groups, streams, and events.', count: data.counts.logs?.count ?? null, error: data.counts.logs?.error ?? null, unit: 'log group', icon: ScrollTextIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/aws/eventbridge', label: 'EventBridge', subtitle: 'Event Bus', description: 'Manage event buses and rules.', count: data.counts.eventbridge?.count ?? null, error: data.counts.eventbridge?.error ?? null, unit: 'bus', icon: ZapIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/aws/secrets', label: 'Secrets Manager', subtitle: 'Secret Storage', description: 'View and manage application secrets.', count: data.counts.secrets?.count ?? null, error: data.counts.secrets?.error ?? null, unit: 'secret', icon: LockIcon, status: 'available', protocols: ['AWS SDK'] },
-		{ href: '/aws/ssm', label: 'SSM Params', subtitle: 'Parameter Store', description: 'Browse and update SSM parameters.', count: data.counts.ssm?.count ?? null, error: data.counts.ssm?.error ?? null, unit: 'parameter', icon: SlidersIcon, status: 'available', protocols: ['AWS SDK'] }
-	]);
+		}))
+	);
 
 	const totalResources = $derived(services.reduce((s, x) => s + (x.count ?? 0), 0));
 	const erroringCount = $derived(services.filter((s) => s.error).length);

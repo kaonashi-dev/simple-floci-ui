@@ -10,6 +10,13 @@ import type {
 	CloudStorageObjectSummary,
 	CloudStorageResource
 } from '$lib/types/cloud-storage';
+import {
+	copyBytes,
+	errorMessage,
+	numberValue,
+	objectName,
+	safeResponseText
+} from './cloud-storage-rest';
 
 function resolve() {
 	if (browser) {
@@ -191,35 +198,6 @@ function toBucketResource(bucket: GcpBucket): CloudStorageResource {
 	};
 }
 
-function objectName(key: string, prefix: string): string {
-	const relative = key.startsWith(prefix) ? key.slice(prefix.length) : key;
-	return relative.replace(/\/$/, '') || key;
-}
-
-function numberValue(value: string | null | undefined): number | null {
-	if (!value) return null;
-	const parsed = Number(value);
-	return Number.isFinite(parsed) ? parsed : null;
-}
-
-function copyBytes(bytes: Uint8Array): ArrayBuffer {
-	const copy = new Uint8Array(bytes.byteLength);
-	copy.set(bytes);
-	return copy.buffer;
-}
-
 function isValidBucketName(value: string): boolean {
 	return /^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$/.test(value);
-}
-
-async function safeResponseText(res: Response): Promise<string> {
-	try {
-		return (await res.text()).trim().slice(0, 500);
-	} catch {
-		return '';
-	}
-}
-
-function errorMessage(error: unknown): string {
-	return error instanceof Error ? error.message : String(error);
 }

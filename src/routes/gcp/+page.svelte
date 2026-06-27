@@ -1,38 +1,18 @@
 <script lang="ts">
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
-	import BoxesIcon from '@lucide/svelte/icons/boxes';
-	import DatabaseIcon from '@lucide/svelte/icons/database';
-	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
-	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
-	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
-	import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
-	import SigmaIcon from '@lucide/svelte/icons/sigma';
-	import UsersRoundIcon from '@lucide/svelte/icons/users-round';
-	import ZapIcon from '@lucide/svelte/icons/zap';
-	import { GCP_SERVICES, type GcpServiceIcon } from '$lib/floci/gcp-catalog';
+	import { servicesForProvider, serviceIcons } from '$lib/catalog';
 
 	let { data } = $props();
 
-	const gcpIconMap: Record<GcpServiceIcon, typeof HardDriveIcon> = {
-		storage: HardDriveIcon,
-		messaging: MessageSquareIcon,
-		database: DatabaseIcon,
-		serverless: SigmaIcon,
-		security: KeyRoundIcon,
-		identity: UsersRoundIcon,
-		containers: BoxesIcon,
-		compute: ZapIcon,
-		observability: ScrollTextIcon
-	};
-
+	const services = servicesForProvider('gcp');
 	const categories = $derived(
-		Array.from(new Set(GCP_SERVICES.map((service) => service.category))).map((category) => ({
+		Array.from(new Set(services.map((service) => service.category))).map((category) => ({
 			category,
-			services: GCP_SERVICES.filter((service) => service.category === category)
+			services: services.filter((service) => service.category === category)
 		}))
 	);
-	const availableCount = $derived(GCP_SERVICES.filter((service) => service.status === 'available').length);
-	const plannedCount = $derived(GCP_SERVICES.length - availableCount);
+	const availableCount = $derived(services.filter((service) => service.status === 'available').length);
+	const plannedCount = $derived(services.length - availableCount);
 	const gcpStatus = $derived(data.connection.gcp);
 </script>
 
@@ -68,7 +48,7 @@
 	<div class="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
 		<div class="console-surface p-3">
 			<p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Services</p>
-			<p class="mt-1 font-mono text-lg font-semibold text-foreground">{GCP_SERVICES.length}</p>
+			<p class="mt-1 font-mono text-lg font-semibold text-foreground">{services.length}</p>
 			<p class="text-[10px] text-muted-foreground/60">under /gcp</p>
 		</div>
 		<div class="console-surface p-3">
@@ -98,7 +78,7 @@
 
 				<div class="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
 					{#each category.services as service}
-						{@const Icon = gcpIconMap[service.icon]}
+						{@const Icon = serviceIcons[service.icon]}
 						<a href={service.route} class="group console-panel p-4 transition-colors hover:border-primary/40 hover:bg-muted/20">
 							<div class="flex items-start gap-3">
 								<span class="flex size-9 shrink-0 items-center justify-center rounded border border-border bg-muted/50">

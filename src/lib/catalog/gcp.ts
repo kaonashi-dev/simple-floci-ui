@@ -1,32 +1,13 @@
-export type GcpServiceStatus = 'available' | 'planned';
+import type { ServiceDefinition } from './types';
 
-export type GcpServiceIcon =
-	| 'storage'
-	| 'messaging'
-	| 'database'
-	| 'serverless'
-	| 'security'
-	| 'identity'
-	| 'containers'
-	| 'compute'
-	| 'observability';
-
-export type GcpServiceDefinition = {
-	id: string;
-	name: string;
-	shortName?: string;
-	route: string;
-	category: string;
-	description: string;
-	protocols: string[];
-	status: GcpServiceStatus;
-	icon: GcpServiceIcon;
-	countKey?: string;
-	unit?: string;
-};
-
-export const GCP_SERVICES: GcpServiceDefinition[] = [
+/**
+ * GCP services under `/gcp`. Cloud Storage is browser-direct against Floci-GCP
+ * today; the rest are `planned` placeholders reserved for future service-shaped
+ * explorers.
+ */
+export const GCP_SERVICES: ServiceDefinition[] = [
 	{
+		provider: 'gcp',
 		id: 'storage',
 		name: 'Cloud Storage',
 		route: '/gcp/storage',
@@ -39,6 +20,7 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'bucket'
 	},
 	{
+		provider: 'gcp',
 		id: 'pubsub',
 		name: 'Pub/Sub',
 		route: '/gcp/pubsub',
@@ -50,6 +32,7 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'topic'
 	},
 	{
+		provider: 'gcp',
 		id: 'firestore',
 		name: 'Firestore',
 		route: '/gcp/firestore',
@@ -61,6 +44,7 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'collection'
 	},
 	{
+		provider: 'gcp',
 		id: 'datastore',
 		name: 'Datastore',
 		route: '/gcp/datastore',
@@ -72,6 +56,7 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'kind'
 	},
 	{
+		provider: 'gcp',
 		id: 'secret-manager',
 		name: 'Secret Manager',
 		shortName: 'Secrets',
@@ -84,6 +69,7 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'secret'
 	},
 	{
+		provider: 'gcp',
 		id: 'iam',
 		name: 'IAM',
 		route: '/gcp/iam',
@@ -95,6 +81,7 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'binding'
 	},
 	{
+		provider: 'gcp',
 		id: 'managed-kafka',
 		name: 'Managed Kafka',
 		shortName: 'Kafka',
@@ -107,6 +94,7 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'cluster'
 	},
 	{
+		provider: 'gcp',
 		id: 'tasks',
 		name: 'Cloud Tasks',
 		shortName: 'Tasks',
@@ -119,6 +107,7 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'queue'
 	},
 	{
+		provider: 'gcp',
 		id: 'run',
 		name: 'Cloud Run',
 		shortName: 'Run',
@@ -131,6 +120,7 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'service'
 	},
 	{
+		provider: 'gcp',
 		id: 'sql',
 		name: 'Cloud SQL',
 		shortName: 'SQL',
@@ -143,6 +133,7 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'instance'
 	},
 	{
+		provider: 'gcp',
 		id: 'functions',
 		name: 'Cloud Functions',
 		shortName: 'Functions',
@@ -155,6 +146,7 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'function'
 	},
 	{
+		provider: 'gcp',
 		id: 'kms',
 		name: 'Cloud KMS',
 		shortName: 'KMS',
@@ -167,6 +159,7 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'key'
 	},
 	{
+		provider: 'gcp',
 		id: 'logging',
 		name: 'Cloud Logging',
 		shortName: 'Logging',
@@ -179,6 +172,7 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'log'
 	},
 	{
+		provider: 'gcp',
 		id: 'monitoring',
 		name: 'Cloud Monitoring',
 		shortName: 'Monitoring',
@@ -191,6 +185,7 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'metric'
 	},
 	{
+		provider: 'gcp',
 		id: 'scheduler',
 		name: 'Cloud Scheduler',
 		shortName: 'Scheduler',
@@ -203,7 +198,3 @@ export const GCP_SERVICES: GcpServiceDefinition[] = [
 		unit: 'job'
 	}
 ];
-
-export function getGcpService(id: string): GcpServiceDefinition | undefined {
-	return GCP_SERVICES.find((service) => service.id === id);
-}

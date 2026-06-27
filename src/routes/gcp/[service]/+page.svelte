@@ -1,38 +1,17 @@
 <script lang="ts">
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
-	import BoxesIcon from '@lucide/svelte/icons/boxes';
-	import DatabaseIcon from '@lucide/svelte/icons/database';
-	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
-	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
-	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
-	import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
-	import SigmaIcon from '@lucide/svelte/icons/sigma';
-	import UsersRoundIcon from '@lucide/svelte/icons/users-round';
 	import WrenchIcon from '@lucide/svelte/icons/wrench';
-	import ZapIcon from '@lucide/svelte/icons/zap';
-	import { GCP_SERVICES, type GcpServiceIcon } from '$lib/floci/gcp-catalog';
+	import { servicesForProvider, serviceIcons } from '$lib/catalog';
 
 	let { data } = $props();
 
-	const gcpIconMap: Record<GcpServiceIcon, typeof HardDriveIcon> = {
-		storage: HardDriveIcon,
-		messaging: MessageSquareIcon,
-		database: DatabaseIcon,
-		serverless: SigmaIcon,
-		security: KeyRoundIcon,
-		identity: UsersRoundIcon,
-		containers: BoxesIcon,
-		compute: ZapIcon,
-		observability: ScrollTextIcon
-	};
-
 	const relatedServices = $derived(
-		GCP_SERVICES.filter(
-			(service) => service.category === data.service.category && service.id !== data.service.id
-		).slice(0, 4)
+		servicesForProvider('gcp')
+			.filter((service) => service.category === data.service.category && service.id !== data.service.id)
+			.slice(0, 4)
 	);
-	const Icon = $derived(gcpIconMap[data.service.icon]);
+	const Icon = $derived(serviceIcons[data.service.icon]);
 </script>
 
 <div class="mx-auto w-full max-w-5xl space-y-5 animate-fade-in-up">

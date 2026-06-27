@@ -1,42 +1,18 @@
 <script lang="ts">
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
-	import BoxesIcon from '@lucide/svelte/icons/boxes';
-	import DatabaseIcon from '@lucide/svelte/icons/database';
-	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
-	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
-	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
-	import NetworkIcon from '@lucide/svelte/icons/network';
-	import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
-	import SigmaIcon from '@lucide/svelte/icons/sigma';
-	import SlidersIcon from '@lucide/svelte/icons/sliders';
-	import UsersRoundIcon from '@lucide/svelte/icons/users-round';
-	import ZapIcon from '@lucide/svelte/icons/zap';
-	import { AZURE_SERVICES, type AzureServiceIcon } from '$lib/floci/azure-catalog';
+	import { servicesForProvider, serviceIcons } from '$lib/catalog';
 
 	let { data } = $props();
 
-	const azureIconMap: Record<AzureServiceIcon, typeof HardDriveIcon> = {
-		storage: HardDriveIcon,
-		messaging: MessageSquareIcon,
-		database: DatabaseIcon,
-		serverless: SigmaIcon,
-		config: SlidersIcon,
-		security: KeyRoundIcon,
-		networking: NetworkIcon,
-		compute: ZapIcon,
-		containers: BoxesIcon,
-		observability: ScrollTextIcon,
-		identity: UsersRoundIcon
-	};
-
+	const services = servicesForProvider('azure');
 	const categories = $derived(
-		Array.from(new Set(AZURE_SERVICES.map((service) => service.category))).map((category) => ({
+		Array.from(new Set(services.map((service) => service.category))).map((category) => ({
 			category,
-			services: AZURE_SERVICES.filter((service) => service.category === category)
+			services: services.filter((service) => service.category === category)
 		}))
 	);
-	const availableCount = $derived(AZURE_SERVICES.filter((service) => service.status === 'available').length);
-	const plannedCount = $derived(AZURE_SERVICES.length - availableCount);
+	const availableCount = $derived(services.filter((service) => service.status === 'available').length);
+	const plannedCount = $derived(services.length - availableCount);
 	const azureStatus = $derived(data.connection.azure);
 </script>
 
@@ -72,7 +48,7 @@
 	<div class="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
 		<div class="console-surface p-3">
 			<p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Services</p>
-			<p class="mt-1 font-mono text-lg font-semibold text-foreground">{AZURE_SERVICES.length}</p>
+			<p class="mt-1 font-mono text-lg font-semibold text-foreground">{services.length}</p>
 			<p class="text-[10px] text-muted-foreground/60">under /azure</p>
 		</div>
 		<div class="console-surface p-3">
@@ -102,7 +78,7 @@
 
 				<div class="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
 					{#each category.services as service}
-						{@const Icon = azureIconMap[service.icon]}
+						{@const Icon = serviceIcons[service.icon]}
 						<a href={service.route} class="group console-panel p-4 transition-colors hover:border-primary/40 hover:bg-muted/20">
 							<div class="flex items-start gap-3">
 								<span class="flex size-9 shrink-0 items-center justify-center rounded border border-border bg-muted/50">

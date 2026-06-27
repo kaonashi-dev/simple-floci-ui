@@ -181,7 +181,7 @@ Then open the hosted URL, confirm/adjust the endpoint in **Settings → Save & t
 
 The dashboard at `/` aggregates resource counts from every wired service in parallel and shows per-runtime connection status.
 
-Azure planned routes are generated from `src/lib/floci/azure-catalog.ts`. The catalog currently reserves routes for Queue Storage, Table Storage, Azure Functions, App Configuration, Key Vault, Event Hubs, Service Bus, Cosmos DB, AKS, Azure SQL, API Management, Virtual Machines, Cache for Redis, Container Registry, Virtual Network, Azure Monitor, Microsoft Entra ID, and Email Communication.
+Azure planned routes are generated from the service catalog (`src/lib/catalog/azure.ts`). The catalog currently reserves routes for Queue Storage, Table Storage, Azure Functions, App Configuration, Key Vault, Event Hubs, Service Bus, Cosmos DB, AKS, Azure SQL, API Management, Virtual Machines, Cache for Redis, Container Registry, Virtual Network, Azure Monitor, Microsoft Entra ID, and Email Communication.
 
 ### Multi-cloud scope
 
@@ -208,11 +208,14 @@ Most non-storage Azure and GCP services are visible as planned because they are 
   providers, so the active endpoint/region/credentials resolve from the per-dev Settings
   (browser) at call time (falls back to env vars on the server for not-yet-migrated routes).
 - **Azure/GCP REST clients** (`src/lib/floci/azure.ts`, `src/lib/floci/gcp.ts`) — browser-direct
-  `fetch` clients for Floci-AZ and Floci-GCP storage APIs.
-- **Azure catalog** (`src/lib/floci/azure-catalog.ts`) — service definitions, route prefixes,
-  status, protocol hints, and dashboard/sidebar metadata for Floci-AZ views.
-- **Service registry** (`src/lib/floci/registry.ts`) — declarative list of all services for
-  the dashboard aggregator.
+  `fetch` clients for Floci-AZ and Floci-GCP storage APIs, sharing response helpers from
+  `src/lib/floci/cloud-storage-rest.ts`.
+- **Service catalog** (`src/lib/catalog/`) — the single source of truth for every service's
+  identity and presentation across all three providers (route, icon, status, category,
+  dashboard `countKey`/`unit`). Pure display metadata with one icon-component map, read by the
+  sidebar, dashboard, provider overviews, and `[service]` placeholder routes.
+- **Service registry** (`src/lib/floci/registry.ts`) — binds each catalog `countKey` to the AWS
+  SDK / REST call that produces its dashboard count, keeping the catalog free of SDK imports.
 - **Settings store** (`src/lib/stores/settings.svelte.ts`) — per-browser connection,
   persisted in `localStorage`.
 - **Client actions** (`src/lib/utils/clientAction.ts`) — `use:enhance`-compatible helper that

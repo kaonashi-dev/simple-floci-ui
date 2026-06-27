@@ -1,106 +1,49 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { AZURE_SERVICES, type AzureServiceIcon } from '$lib/floci/azure-catalog';
-	import { GCP_SERVICES, type GcpServiceIcon } from '$lib/floci/gcp-catalog';
+	import { servicesForProvider, serviceIcons, type ServiceDefinition } from '$lib/catalog';
 	import { activeCloud, type CloudId } from '$lib/stores/activeCloud.svelte';
 	import { cn } from '$lib/utils';
 	import BoxesIcon from '@lucide/svelte/icons/boxes';
-	import DatabaseIcon from '@lucide/svelte/icons/database';
-	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
-	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
 	import LayoutDashboardIcon from '@lucide/svelte/icons/layout-dashboard';
-	import LockIcon from '@lucide/svelte/icons/lock';
-	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
-	import NetworkIcon from '@lucide/svelte/icons/network';
-	import RadioTowerIcon from '@lucide/svelte/icons/radio-tower';
-	import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
-	import ShieldIcon from '@lucide/svelte/icons/shield';
-	import SigmaIcon from '@lucide/svelte/icons/sigma';
-	import SlidersIcon from '@lucide/svelte/icons/sliders';
-	import UsersRoundIcon from '@lucide/svelte/icons/users-round';
-	import ZapIcon from '@lucide/svelte/icons/zap';
 
 	const dashboardLink = { href: '/', label: 'Dashboard', icon: LayoutDashboardIcon };
 	const DashboardIcon = dashboardLink.icon;
-	const azureIconMap: Record<AzureServiceIcon, typeof LayoutDashboardIcon> = {
-		storage: HardDriveIcon,
-		messaging: MessageSquareIcon,
-		database: DatabaseIcon,
-		serverless: SigmaIcon,
-		config: SlidersIcon,
-		security: KeyRoundIcon,
-		networking: NetworkIcon,
-		compute: ZapIcon,
-		containers: BoxesIcon,
-		observability: ScrollTextIcon,
-		identity: UsersRoundIcon
-	};
-
-	const gcpIconMap: Record<GcpServiceIcon, typeof LayoutDashboardIcon> = {
-		storage: HardDriveIcon,
-		messaging: MessageSquareIcon,
-		database: DatabaseIcon,
-		serverless: SigmaIcon,
-		security: KeyRoundIcon,
-		identity: UsersRoundIcon,
-		containers: BoxesIcon,
-		compute: ZapIcon,
-		observability: ScrollTextIcon
-	};
 
 	type SidebarLink = { href: string; label: string; icon: typeof LayoutDashboardIcon; status: string; exact?: boolean };
 	type SidebarDisabled = { label: string; icon: typeof LayoutDashboardIcon };
 	type SidebarGroup = { label: string; prefix: string; links: SidebarLink[]; disabled: SidebarDisabled[] };
 
+	function serviceLink(service: ServiceDefinition): SidebarLink {
+		return {
+			href: service.route,
+			label: service.shortName ?? service.name,
+			icon: serviceIcons[service.icon],
+			status: service.status,
+			exact: false
+		};
+	}
+
+	function overviewLink(href: string): SidebarLink {
+		return { href, label: 'Overview', icon: BoxesIcon, status: 'available', exact: true };
+	}
+
 	const groups: Record<CloudId, SidebarGroup> = {
 		azure: {
 			label: 'Azure',
 			prefix: '/azure',
-			links: [
-				{ href: '/azure', label: 'Overview', icon: BoxesIcon, status: 'available', exact: true },
-				...AZURE_SERVICES.map((service) => ({
-					href: service.route,
-					label: service.shortName ?? service.name,
-					icon: azureIconMap[service.icon],
-					status: service.status,
-					exact: false
-				}))
-			],
+			links: [overviewLink('/azure'), ...servicesForProvider('azure').map(serviceLink)],
 			disabled: []
 		},
 		gcp: {
 			label: 'GCP',
 			prefix: '/gcp',
-			links: [
-				{ href: '/gcp', label: 'Overview', icon: BoxesIcon, status: 'available', exact: true },
-				...GCP_SERVICES.map((service) => ({
-					href: service.route,
-					label: service.shortName ?? service.name,
-					icon: gcpIconMap[service.icon],
-					status: service.status,
-					exact: false
-				}))
-			],
+			links: [overviewLink('/gcp'), ...servicesForProvider('gcp').map(serviceLink)],
 			disabled: []
 		},
 		aws: {
 			label: 'AWS',
 			prefix: '/aws',
-			links: [
-				{ href: '/aws/sqs', label: 'SQS', icon: MessageSquareIcon, status: 'available' },
-				{ href: '/aws/s3', label: 'S3', icon: HardDriveIcon, status: 'available' },
-				{ href: '/aws/cognito', label: 'Cognito', icon: UsersRoundIcon, status: 'available' },
-				{ href: '/aws/kms', label: 'KMS', icon: KeyRoundIcon, status: 'available' },
-				{ href: '/aws/lambda', label: 'Lambda', icon: SigmaIcon, status: 'available' },
-				{ href: '/aws/dynamodb', label: 'DynamoDB', icon: DatabaseIcon, status: 'available' },
-				{ href: '/aws/sns', label: 'SNS', icon: RadioTowerIcon, status: 'available' },
-				{ href: '/aws/apigateway', label: 'API Gateway', icon: NetworkIcon, status: 'available' },
-				{ href: '/aws/iam', label: 'IAM', icon: ShieldIcon, status: 'available' },
-				{ href: '/aws/logs', label: 'CloudWatch Logs', icon: ScrollTextIcon, status: 'available' },
-				{ href: '/aws/eventbridge', label: 'EventBridge', icon: ZapIcon, status: 'available' },
-				{ href: '/aws/secrets', label: 'Secrets Manager', icon: LockIcon, status: 'available' },
-				{ href: '/aws/ssm', label: 'SSM Params', icon: SlidersIcon, status: 'available' }
-			],
+			links: servicesForProvider('aws').map(serviceLink),
 			disabled: []
 		}
 	};

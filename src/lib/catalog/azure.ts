@@ -1,34 +1,13 @@
-export type AzureServiceStatus = 'available' | 'planned';
+import type { ServiceDefinition } from './types';
 
-export type AzureServiceIcon =
-	| 'storage'
-	| 'messaging'
-	| 'database'
-	| 'serverless'
-	| 'config'
-	| 'security'
-	| 'networking'
-	| 'compute'
-	| 'containers'
-	| 'observability'
-	| 'identity';
-
-export type AzureServiceDefinition = {
-	id: string;
-	name: string;
-	shortName?: string;
-	route: string;
-	category: string;
-	description: string;
-	protocols: string[];
-	status: AzureServiceStatus;
-	icon: AzureServiceIcon;
-	countKey?: string;
-	unit?: string;
-};
-
-export const AZURE_SERVICES: AzureServiceDefinition[] = [
+/**
+ * Azure services under `/azure`. Blob Storage is browser-direct against Floci-AZ
+ * today; the rest are `planned` placeholders reserved so each can grow into its
+ * own service-shaped explorer.
+ */
+export const AZURE_SERVICES: ServiceDefinition[] = [
 	{
+		provider: 'azure',
 		id: 'storage',
 		name: 'Blob Storage',
 		route: '/azure/storage',
@@ -41,6 +20,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'container'
 	},
 	{
+		provider: 'azure',
 		id: 'queue-storage',
 		name: 'Queue Storage',
 		route: '/azure/queue-storage',
@@ -52,6 +32,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'queue'
 	},
 	{
+		provider: 'azure',
 		id: 'table-storage',
 		name: 'Table Storage',
 		route: '/azure/table-storage',
@@ -63,6 +44,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'table'
 	},
 	{
+		provider: 'azure',
 		id: 'functions',
 		name: 'Azure Functions',
 		route: '/azure/functions',
@@ -74,6 +56,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'function'
 	},
 	{
+		provider: 'azure',
 		id: 'app-configuration',
 		name: 'App Configuration',
 		route: '/azure/app-configuration',
@@ -85,6 +68,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'key'
 	},
 	{
+		provider: 'azure',
 		id: 'key-vault',
 		name: 'Key Vault',
 		route: '/azure/key-vault',
@@ -96,6 +80,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'secret'
 	},
 	{
+		provider: 'azure',
 		id: 'event-hubs',
 		name: 'Event Hubs',
 		route: '/azure/event-hubs',
@@ -107,6 +92,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'hub'
 	},
 	{
+		provider: 'azure',
 		id: 'service-bus',
 		name: 'Service Bus',
 		route: '/azure/service-bus',
@@ -118,6 +104,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'entity'
 	},
 	{
+		provider: 'azure',
 		id: 'cosmos-db',
 		name: 'Cosmos DB',
 		route: '/azure/cosmos-db',
@@ -129,6 +116,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'database'
 	},
 	{
+		provider: 'azure',
 		id: 'aks',
 		name: 'AKS',
 		route: '/azure/aks',
@@ -140,6 +128,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'cluster'
 	},
 	{
+		provider: 'azure',
 		id: 'sql',
 		name: 'Azure SQL',
 		route: '/azure/sql',
@@ -151,6 +140,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'database'
 	},
 	{
+		provider: 'azure',
 		id: 'api-management',
 		name: 'API Management',
 		route: '/azure/api-management',
@@ -162,6 +152,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'service'
 	},
 	{
+		provider: 'azure',
 		id: 'virtual-machines',
 		name: 'Virtual Machines',
 		route: '/azure/virtual-machines',
@@ -173,6 +164,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'vm'
 	},
 	{
+		provider: 'azure',
 		id: 'redis',
 		name: 'Cache for Redis',
 		route: '/azure/redis',
@@ -184,6 +176,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'cache'
 	},
 	{
+		provider: 'azure',
 		id: 'container-registry',
 		name: 'Container Registry',
 		route: '/azure/container-registry',
@@ -195,6 +188,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'registry'
 	},
 	{
+		provider: 'azure',
 		id: 'virtual-network',
 		name: 'Virtual Network',
 		route: '/azure/virtual-network',
@@ -206,6 +200,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'network'
 	},
 	{
+		provider: 'azure',
 		id: 'monitor',
 		name: 'Azure Monitor',
 		route: '/azure/monitor',
@@ -217,6 +212,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'signal'
 	},
 	{
+		provider: 'azure',
 		id: 'entra-id',
 		name: 'Microsoft Entra ID',
 		route: '/azure/entra-id',
@@ -228,6 +224,7 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'identity'
 	},
 	{
+		provider: 'azure',
 		id: 'email-communication',
 		name: 'Email Communication',
 		route: '/azure/email-communication',
@@ -239,7 +236,3 @@ export const AZURE_SERVICES: AzureServiceDefinition[] = [
 		unit: 'resource'
 	}
 ];
-
-export function getAzureService(id: string): AzureServiceDefinition | undefined {
-	return AZURE_SERVICES.find((service) => service.id === id);
-}

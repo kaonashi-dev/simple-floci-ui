@@ -1,42 +1,17 @@
 <script lang="ts">
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
 	import ArrowRightIcon from '@lucide/svelte/icons/arrow-right';
-	import BoxesIcon from '@lucide/svelte/icons/boxes';
-	import DatabaseIcon from '@lucide/svelte/icons/database';
-	import HardDriveIcon from '@lucide/svelte/icons/hard-drive';
-	import KeyRoundIcon from '@lucide/svelte/icons/key-round';
-	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
-	import NetworkIcon from '@lucide/svelte/icons/network';
-	import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
-	import SigmaIcon from '@lucide/svelte/icons/sigma';
-	import SlidersIcon from '@lucide/svelte/icons/sliders';
-	import UsersRoundIcon from '@lucide/svelte/icons/users-round';
 	import WrenchIcon from '@lucide/svelte/icons/wrench';
-	import ZapIcon from '@lucide/svelte/icons/zap';
-	import { AZURE_SERVICES, type AzureServiceIcon } from '$lib/floci/azure-catalog';
+	import { servicesForProvider, serviceIcons } from '$lib/catalog';
 
 	let { data } = $props();
 
-	const azureIconMap: Record<AzureServiceIcon, typeof HardDriveIcon> = {
-		storage: HardDriveIcon,
-		messaging: MessageSquareIcon,
-		database: DatabaseIcon,
-		serverless: SigmaIcon,
-		config: SlidersIcon,
-		security: KeyRoundIcon,
-		networking: NetworkIcon,
-		compute: ZapIcon,
-		containers: BoxesIcon,
-		observability: ScrollTextIcon,
-		identity: UsersRoundIcon
-	};
-
 	const relatedServices = $derived(
-		AZURE_SERVICES.filter(
-			(service) => service.category === data.service.category && service.id !== data.service.id
-		).slice(0, 4)
+		servicesForProvider('azure')
+			.filter((service) => service.category === data.service.category && service.id !== data.service.id)
+			.slice(0, 4)
 	);
-	const Icon = $derived(azureIconMap[data.service.icon]);
+	const Icon = $derived(serviceIcons[data.service.icon]);
 </script>
 
 <div class="mx-auto w-full max-w-5xl space-y-5 animate-fade-in-up">
