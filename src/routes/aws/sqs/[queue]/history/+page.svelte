@@ -48,6 +48,11 @@
 				<path stroke-linecap="round" stroke-linejoin="round" d="M1 1l4 4-4 4" />
 			</svg>
 			<span class="font-medium text-foreground">History</span>
+			<span class="text-border">·</span>
+			<a
+				href="/aws/sqs/{encodeURIComponent(data.name)}/metrics"
+				class="rounded px-1.5 py-1 transition-colors hover:bg-muted hover:text-foreground"
+			>Metrics</a>
 		</nav>
 		<h1 class="page-title">Message History</h1>
 		<p class="mt-0.5 page-subtitle">{data.events.length} event{data.events.length !== 1 ? 's' : ''} recorded locally</p>
