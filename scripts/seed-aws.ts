@@ -18,7 +18,7 @@ import { KMSClient, CreateKeyCommand, CreateAliasCommand, ListKeysCommand } from
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const ENDPOINT = "http://localhost:4566";
+const ENDPOINT = "http://localhost:59595";
 const REGION   = "us-east-1";
 const CREDS    = { accessKeyId: "test", secretAccessKey: "test" };
 

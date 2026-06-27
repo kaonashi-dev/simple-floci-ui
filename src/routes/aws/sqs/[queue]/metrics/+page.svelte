@@ -3,44 +3,45 @@
 	import PauseIcon from '@lucide/svelte/icons/pause';
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
+	import Trash2Icon from '@lucide/svelte/icons/trash-2';
 	import { Button } from '$lib/components/ui/button';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import LineChart from '$lib/components/charts/LineChart.svelte';
 	import BarChart from '$lib/components/charts/BarChart.svelte';
 	import { getQueueUrl, getQueueMetrics } from '$lib/floci/sqs';
+	import { loadSnapshots, saveSnapshots, clearSnapshots, pruneSnapshots } from '$lib/floci/sqs-snapshots';
 	import {
-		buildThroughputSeries,
-		buildLatencySeries,
-		buildLatencyHistogram,
-		computeLatencyPercentiles,
-		filterByWindow,
+		buildDepthSeries,
+		buildSnapshotThroughput,
+		estimateTimeInQueue,
+		snapshotsInWindowCount,
 		WINDOW_PRESETS,
 		type MetricWindow
 	} from '$lib/floci/sqs-metrics';
 	import { formatDuration } from '$lib/utils/formatDuration';
-	import type { SqsQueueMetrics } from '$lib/types/sqs';
+	import type { SqsDepthSnapshot, SqsQueueMetrics } from '$lib/types/sqs';
 
 	let { data } = $props();
 
-	// Shared palette (kept in sync with the history page's event tags).
 	const C = {
 		visible: '#0ea5e9', // sky-500 — available / depth
 		inflight: '#f59e0b', // amber-500 — in-flight / being read
 		delayed: '#8b5cf6', // violet-500 — delayed
-		sent: '#0ea5e9',
-		received: '#10b981', // emerald-500
-		deleted: '#f43f5e' // rose-500
+		enqueued: '#0ea5e9',
+		dequeued: '#10b981' // emerald-500
 	};
 
-	// Anchor windowed queries to a single "now" captured on entry.
-	const nowMs = Date.now();
 	let range = $state<MetricWindow>('all');
 
-	// ── Live depth polling (real-time, from the queue itself) ────────────────
-	type Snapshot = { tsMs: number } & SqsQueueMetrics;
-	const MAX_SNAPSHOTS = 240;
+	// A reactive clock so windowed views and "updated Ns ago" stay fresh.
+	let now = $state(Date.now());
+	$effect(() => {
+		const id = setInterval(() => (now = Date.now()), 1000);
+		return () => clearInterval(id);
+	});
 
-	let snapshots = $state<Snapshot[]>([]);
+	// ── Polling + persisted history ──────────────────────────────────────────
+	let snapshots = $state<SqsDepthSnapshot[]>([]);
 	let live = $state<SqsQueueMetrics | null>(null);
 	let lastUpdated = $state<number | null>(null);
 	let liveError = $state<string | null>(null);
@@ -48,115 +49,99 @@
 	let intervalMs = $state(5000);
 	let queueUrl: string | null = null;
 
+	onMount(() => {
+		// Show whatever this browser has already collected, immediately.
+		snapshots = loadSnapshots(data.name);
+		if (snapshots.length) lastUpdated = snapshots[snapshots.length - 1].tsMs;
+		poll();
+	});
+
 	async function poll() {
 		try {
 			if (!queueUrl) queueUrl = await getQueueUrl(data.name);
 			const m = await getQueueMetrics(queueUrl);
+			const ts = Date.now();
 			live = m;
-			lastUpdated = Date.now();
-			snapshots = [...snapshots, { tsMs: lastUpdated, ...m }].slice(-MAX_SNAPSHOTS);
+			lastUpdated = ts;
+			snapshots = pruneSnapshots([...snapshots, { tsMs: ts, ...m }], ts);
+			saveSnapshots(data.name, snapshots);
 			liveError = null;
 		} catch (e) {
 			liveError = e instanceof Error ? e.message : String(e);
 		}
 	}
 
-	onMount(() => {
-		poll();
-	});
-
-	// Drive the polling timer purely off reactive state so toggling
-	// run/interval restarts cleanly without leaking timers.
+	// Timer driven purely off reactive state — toggling restarts cleanly.
 	$effect(() => {
 		if (!running) return;
 		const id = setInterval(poll, intervalMs);
 		return () => clearInterval(id);
 	});
 
+	function clearHistory() {
+		clearSnapshots(data.name);
+		snapshots = [];
+	}
+
+	// ── derived series ───────────────────────────────────────────────────────
+	const depthPoints = $derived(buildDepthSeries(snapshots, { window: range, nowMs: now }));
 	const depthSeries = $derived([
 		{
 			name: 'Available',
 			color: C.visible,
 			area: true,
-			points: snapshots.map((s) => ({ x: s.tsMs, y: s.visible }))
+			points: depthPoints.map((s) => ({ x: s.tsMs, y: s.visible }))
 		},
 		{
 			name: 'In-flight (being read)',
 			color: C.inflight,
-			points: snapshots.map((s) => ({ x: s.tsMs, y: s.notVisible }))
+			points: depthPoints.map((s) => ({ x: s.tsMs, y: s.notVisible }))
 		},
 		{
 			name: 'Delayed',
 			color: C.delayed,
-			points: snapshots.map((s) => ({ x: s.tsMs, y: s.delayed }))
+			points: depthPoints.map((s) => ({ x: s.tsMs, y: s.delayed }))
 		}
 	]);
 
-	// ── Historical series (from the local send/receive/delete event log) ─────
-	const scopedEvents = $derived(filterByWindow(data.events, range, nowMs));
-
-	const throughput = $derived(buildThroughputSeries(data.events, { window: range, nowMs }));
+	const throughput = $derived(buildSnapshotThroughput(snapshots, { window: range, nowMs: now }));
 	const throughputSeries = [
-		{ name: 'Sent', color: C.sent },
-		{ name: 'Received', color: C.received },
-		{ name: 'Deleted', color: C.deleted }
+		{ name: 'Enqueued', color: C.enqueued },
+		{ name: 'Dequeued', color: C.dequeued }
 	];
 	const throughputGroups = $derived(
-		throughput.map((b) => ({ label: axisFmt(b.tsMs), values: [b.sent, b.received, b.deleted] }))
+		throughput.map((b) => ({ label: axisFmt(b.tsMs), values: [b.enqueued, b.dequeued] }))
 	);
-
-	const latency = $derived(buildLatencySeries(data.events, { window: range, nowMs }));
-	const latencyLineSeries = $derived([
-		{
-			name: 'Avg time in queue',
-			color: C.received,
-			area: true,
-			points: latency.filter((b) => b.avgMs != null).map((b) => ({ x: b.tsMs, y: b.avgMs as number }))
-		},
-		{
-			name: 'Max',
-			color: C.deleted,
-			points: latency.filter((b) => b.maxMs != null).map((b) => ({ x: b.tsMs, y: b.maxMs as number }))
-		}
-	]);
-
-	const histogram = $derived(buildLatencyHistogram(scopedEvents));
-	const histogramSeries = [{ name: 'messages', color: C.received }];
-	const histogramGroups = $derived(histogram.map((b) => ({ label: b.label, values: [b.count] })));
-
-	const pct = $derived(computeLatencyPercentiles(scopedEvents));
-
 	const totals = $derived({
-		sent: throughput.reduce((a, b) => a + b.sent, 0),
-		received: throughput.reduce((a, b) => a + b.received, 0),
-		deleted: throughput.reduce((a, b) => a + b.deleted, 0)
+		enqueued: throughput.reduce((a, b) => a + b.enqueued, 0),
+		dequeued: throughput.reduce((a, b) => a + b.dequeued, 0)
 	});
 
-	// ── time-axis formatting ─────────────────────────────────────────────────
+	const estimate = $derived(estimateTimeInQueue(snapshots, { window: range, nowMs: now }));
+	const inRangeCount = $derived(snapshotsInWindowCount(snapshots, range, now));
+
+	// ── time-axis formatting ───────────────────────────────────────────────
 	const spanMs = $derived(
-		throughput.length > 1 ? throughput[throughput.length - 1].tsMs - throughput[0].tsMs : 0
+		depthPoints.length > 1 ? depthPoints[depthPoints.length - 1].tsMs - depthPoints[0].tsMs : 0
 	);
 	function axisFmt(ms: number): string {
 		const opts: Intl.DateTimeFormatOptions =
 			spanMs >= 24 * 3_600_000
 				? { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }
-				: { hour: '2-digit', minute: '2-digit' };
+				: spanMs >= 60 * 60_000
+					? { hour: '2-digit', minute: '2-digit' }
+					: { hour: '2-digit', minute: '2-digit', second: '2-digit' };
 		return new Date(ms).toLocaleString(undefined, opts);
 	}
-	function clockFmt(ms: number): string {
-		return new Date(ms).toLocaleTimeString(undefined, {
-			hour: '2-digit',
-			minute: '2-digit',
-			second: '2-digit'
-		});
-	}
 
-	let now = $state(Date.now());
-	$effect(() => {
-		const id = setInterval(() => (now = Date.now()), 1000);
-		return () => clearInterval(id);
-	});
-	const sinceUpdated = $derived(lastUpdated ? Math.max(0, Math.round((now - lastUpdated) / 1000)) : null);
+	const sinceUpdated = $derived(
+		lastUpdated ? Math.max(0, Math.round((now - lastUpdated) / 1000)) : null
+	);
+
+	function ratePerMin(perSec: number | null): string {
+		if (perSec == null) return '—';
+		return `${(perSec * 60).toFixed(perSec * 60 < 10 ? 1 : 0)}/min`;
+	}
 </script>
 
 <div class="mx-auto w-full max-w-7xl space-y-6 animate-fade-in-up">
@@ -183,7 +168,8 @@
 			{/if}
 		</div>
 		<p class="mt-0.5 page-subtitle">
-			Live queue depth plus throughput and time-in-queue recorded locally in this browser.
+			Polled live from the queue and stored in this browser — reflects all activity, from any
+			producer or consumer.
 		</p>
 	</div>
 
@@ -191,9 +177,9 @@
 	<section class="console-panel p-4 space-y-4">
 		<div class="flex flex-wrap items-center justify-between gap-3">
 			<div>
-				<h2 class="text-sm font-semibold">Queue depth (live)</h2>
+				<h2 class="text-sm font-semibold">Queue depth</h2>
 				<p class="mt-0.5 text-xs text-muted-foreground/60">
-					Polled directly from the queue · how many are waiting vs being read.
+					How many are waiting vs being read · history persists across reloads.
 				</p>
 			</div>
 			<div class="flex items-center gap-2">
@@ -216,6 +202,14 @@
 				</Button>
 				<Button variant="ghost" size="sm" class="h-8 px-2 text-xs" onclick={poll}>
 					<RefreshCwIcon class="size-3.5" /> Now
+				</Button>
+				<Button
+					variant="ghost"
+					size="sm"
+					class="h-8 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+					onclick={clearHistory}
+				>
+					<Trash2Icon class="size-3.5" /> Clear
 				</Button>
 			</div>
 		</div>
@@ -262,15 +256,15 @@
 
 		<LineChart
 			series={depthSeries}
-			height={200}
-			formatX={clockFmt}
+			height={220}
+			formatX={axisFmt}
 			formatY={(v) => String(Math.round(v))}
 			yUnit="messages"
 			emptyText={running ? 'Collecting snapshots…' : 'Paused — resume to collect depth'}
 		/>
 	</section>
 
-	<!-- ════════════ WINDOW SELECTOR ════════════ -->
+	<!-- ════════════ RANGE SELECTOR ════════════ -->
 	<div class="flex flex-wrap items-center gap-2">
 		<span class="text-xs font-medium text-muted-foreground">Range</span>
 		{#each WINDOW_PRESETS as preset}
@@ -285,31 +279,27 @@
 			</button>
 		{/each}
 		<span class="ml-auto text-[11px] text-muted-foreground/50">
-			{scopedEvents.length} event{scopedEvents.length !== 1 ? 's' : ''} in range
+			{inRangeCount} snapshot{inRangeCount !== 1 ? 's' : ''} in range
 		</span>
 	</div>
 
 	<!-- ════════════ THROUGHPUT ════════════ -->
 	<section class="console-panel p-4 space-y-4">
 		<div>
-			<h2 class="text-sm font-semibold">Message throughput</h2>
+			<h2 class="text-sm font-semibold">Throughput (approx)</h2>
 			<p class="mt-0.5 text-xs text-muted-foreground/60">
-				Sent / received / deleted per interval, from this browser's activity.
+				Messages added vs removed per interval, derived from how the backlog changes between polls.
 			</p>
 		</div>
 
-		<div class="grid grid-cols-3 gap-2.5">
+		<div class="grid grid-cols-2 gap-2.5">
 			<div class="console-surface p-3">
-				<p class="console-subtle-label">Sent</p>
-				<p class="mt-1 font-mono text-lg font-semibold" style="color:{C.sent}">{totals.sent}</p>
+				<p class="console-subtle-label">Enqueued</p>
+				<p class="mt-1 font-mono text-lg font-semibold" style="color:{C.enqueued}">≈ {totals.enqueued}</p>
 			</div>
 			<div class="console-surface p-3">
-				<p class="console-subtle-label">Received</p>
-				<p class="mt-1 font-mono text-lg font-semibold" style="color:{C.received}">{totals.received}</p>
-			</div>
-			<div class="console-surface p-3">
-				<p class="console-subtle-label">Deleted</p>
-				<p class="mt-1 font-mono text-lg font-semibold" style="color:{C.deleted}">{totals.deleted}</p>
+				<p class="console-subtle-label">Dequeued</p>
+				<p class="mt-1 font-mono text-lg font-semibold" style="color:{C.dequeued}">≈ {totals.dequeued}</p>
 			</div>
 		</div>
 
@@ -318,54 +308,51 @@
 			groups={throughputGroups}
 			height={220}
 			formatValue={(v) => String(Math.round(v))}
-			emptyText="No send/receive/delete activity recorded in this range"
+			emptyText="No depth changes recorded yet — produce or consume messages while this is open"
 		/>
 	</section>
 
-	<!-- ════════════ TIME IN QUEUE ════════════ -->
+	<!-- ════════════ ESTIMATED TIME IN QUEUE ════════════ -->
 	<section class="console-panel p-4 space-y-4">
 		<div>
-			<h2 class="text-sm font-semibold">Time in queue</h2>
+			<h2 class="text-sm font-semibold">Estimated time in queue</h2>
 			<p class="mt-0.5 text-xs text-muted-foreground/60">
-				How long messages waited before being received (send → receive latency).
+				Average wait estimated with Little's Law: W ≈ average backlog ÷ dequeue rate.
 			</p>
 		</div>
 
-		<div class="grid grid-cols-3 gap-2.5 sm:grid-cols-6">
-			{#each [['Min', pct.minMs], ['Avg', pct.avgMs], ['p50', pct.p50Ms], ['p90', pct.p90Ms], ['p95', pct.p95Ms], ['Max', pct.maxMs]] as [label, value]}
-				<div class="console-surface p-3">
-					<p class="console-subtle-label">{label}</p>
-					<p class="mt-1 font-mono text-base font-semibold text-foreground">{formatDuration(value as number | null)}</p>
-				</div>
-			{/each}
+		<div class="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+			<div class="console-surface p-3">
+				<p class="console-subtle-label">Avg backlog</p>
+				<p class="mt-1 font-mono text-base font-semibold text-foreground">
+					{estimate.avgBacklogMsgs == null ? '—' : `${estimate.avgBacklogMsgs.toFixed(1)} msgs`}
+				</p>
+			</div>
+			<div class="console-surface p-3">
+				<p class="console-subtle-label">Dequeue rate</p>
+				<p class="mt-1 font-mono text-base font-semibold text-foreground">
+					{ratePerMin(estimate.dequeueRatePerSec)}
+				</p>
+			</div>
+			<div class="console-surface p-3">
+				<p class="console-subtle-label">Est. avg wait</p>
+				<p class="mt-1 font-mono text-base font-semibold text-foreground">
+					{formatDuration(estimate.estWaitMs)}
+				</p>
+			</div>
 		</div>
 
-		<div>
-			<p class="mb-1.5 text-xs font-medium text-muted-foreground">Latency over time</p>
-			<LineChart
-				series={latencyLineSeries}
-				height={180}
-				formatX={axisFmt}
-				formatY={(v) => formatDuration(v)}
-				emptyText="No received messages with timing data in this range"
-			/>
-		</div>
-
-		<div>
-			<p class="mb-1.5 text-xs font-medium text-muted-foreground">Distribution ({pct.count} message{pct.count !== 1 ? 's' : ''})</p>
-			<BarChart
-				series={histogramSeries}
-				groups={histogramGroups}
-				height={180}
-				formatValue={(v) => String(Math.round(v))}
-				emptyText="No timing data — receive some messages to populate this"
-			/>
-		</div>
+		{#if estimate.estWaitMs == null}
+			<p class="text-[11px] text-muted-foreground/50">
+				No consumption observed in this range yet — the wait estimate needs messages to be drained
+				from the queue.
+			</p>
+		{/if}
 	</section>
 
 	<p class="text-[11px] leading-relaxed text-muted-foreground/50">
-		Depth is read live from the queue. Throughput and time-in-queue come from events recorded in
-		this browser when you send, receive, or delete messages here — they reflect your own activity,
-		not traffic from other producers or consumers.
+		SQS reports approximate depth levels, not exact send/receive counters, so throughput and wait
+		time are estimates derived from backlog changes between polls. History is collected while this
+		page is open and stored per-queue in this browser.
 	</p>
 </div>

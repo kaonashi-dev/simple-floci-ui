@@ -17,6 +17,9 @@ export type SqsQueueMetrics = {
 	delayed: number;
 };
 
+/** A depth snapshot stamped with the time it was polled. Persisted per queue. */
+export type SqsDepthSnapshot = SqsQueueMetrics & { tsMs: number };
+
 export type SqsMessage = {
 	messageId?: string;
 	body?: string;

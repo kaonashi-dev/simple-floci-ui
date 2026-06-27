@@ -12,25 +12,25 @@
 	import Sparkline from '$lib/components/charts/Sparkline.svelte';
 	import { clientAction } from '$lib/utils/clientAction';
 	import { createQueue, deleteQueue } from '$lib/floci/sqs';
-	import { getQueueHistory } from '$lib/floci/sqs-history';
-	import { buildThroughputSeries } from '$lib/floci/sqs-metrics';
+	import { loadSnapshots } from '$lib/floci/sqs-snapshots';
+	import { buildSnapshotThroughput } from '$lib/floci/sqs-metrics';
 
 	let { data } = $props();
 
-	// Per-queue activity sparkline (sent vs received) derived from the local
-	// event log. Computed client-side since history lives in localStorage.
+	// Per-queue activity sparkline (enqueued vs dequeued) derived from the depth
+	// snapshots collected on each queue's metrics page (stored in localStorage).
 	const nowMs = Date.now();
 	const sparks = $derived.by(() => {
-		const m = new Map<string, { sent: number[]; received: number[] }>();
+		const m = new Map<string, { enqueued: number[]; dequeued: number[] }>();
 		for (const q of data.queues) {
-			const buckets = buildThroughputSeries(getQueueHistory(q.name, 500), {
+			const buckets = buildSnapshotThroughput(loadSnapshots(q.name), {
 				window: 'all',
 				nowMs,
 				targetBuckets: 24
 			});
 			m.set(q.name, {
-				sent: buckets.map((b) => b.sent),
-				received: buckets.map((b) => b.received)
+				enqueued: buckets.map((b) => b.enqueued),
+				dequeued: buckets.map((b) => b.dequeued)
 			});
 		}
 		return m;
@@ -206,8 +206,8 @@
 								>
 									<Sparkline
 										series={[
-											{ color: '#0ea5e9', values: sparks.get(queue.name)?.sent ?? [] },
-											{ color: '#10b981', values: sparks.get(queue.name)?.received ?? [] }
+											{ color: '#0ea5e9', values: sparks.get(queue.name)?.enqueued ?? [] },
+											{ color: '#10b981', values: sparks.get(queue.name)?.dequeued ?? [] }
 										]}
 									/>
 								</a>

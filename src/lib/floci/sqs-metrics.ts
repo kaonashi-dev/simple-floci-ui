@@ -1,4 +1,5 @@
 import type { SqsHistoryEvent } from '$lib/types/sqs-history';
+import type { SqsDepthSnapshot } from '$lib/types/sqs';
 
 /**
  * Pure aggregation helpers that turn the locally-recorded SQS event log into the
@@ -259,6 +260,166 @@ export function computeLatencyPercentiles(events: SqsHistoryEvent[]): LatencyPer
 		p95Ms: percentile(values, 95),
 		maxMs: values[values.length - 1]
 	};
+}
+
+// ── snapshot-derived metrics (from polled queue depth) ──────────────────────
+//
+// SQS exposes approximate depth *levels*, not flow counters, so throughput and
+// time-in-queue are derived from how the backlog changes between polls. These
+// reflect ALL activity on the queue (any producer/consumer), not just actions
+// taken from this browser's UI.
+
+export type SnapshotThroughputBucket = {
+	tsMs: number;
+	/** Approx messages added (positive backlog change) in the bucket. */
+	enqueued: number;
+	/** Approx messages removed (negative backlog change) in the bucket. */
+	dequeued: number;
+};
+
+export type QueueEstimate = {
+	/** Time-weighted average backlog (visible + in-flight + delayed). */
+	avgBacklogMsgs: number | null;
+	/** Approx messages removed over the window. */
+	dequeuedTotal: number;
+	/** Approx dequeue rate (messages/second) over the window. */
+	dequeueRatePerSec: number | null;
+	/** Little's Law estimate of average time-in-queue: W ≈ L / λ. */
+	estWaitMs: number | null;
+	/** Span of the analysed window in ms. */
+	windowMs: number;
+};
+
+export type DepthSeriesOptions = SeriesOptions & { maxPoints?: number };
+
+function backlog(s: SqsDepthSnapshot): number {
+	return s.visible + s.notVisible + s.delayed;
+}
+
+function snapshotsInWindow(
+	snaps: SqsDepthSnapshot[],
+	window: MetricWindow,
+	nowMs: number
+): SqsDepthSnapshot[] {
+	if (window === 'all') return snaps;
+	const from = nowMs - window;
+	return snaps.filter((s) => s.tsMs >= from);
+}
+
+/** Count of snapshots that fall within the given window. */
+export function snapshotsInWindowCount(
+	snaps: SqsDepthSnapshot[],
+	window: MetricWindow,
+	nowMs: number
+): number {
+	return snapshotsInWindow(snaps, window, nowMs).length;
+}
+
+/** Per-poll backlog deltas split into enqueue (+) and dequeue (−) flow. */
+function backlogDeltas(snaps: SqsDepthSnapshot[]): SnapshotThroughputBucket[] {
+	const out: SnapshotThroughputBucket[] = [];
+	for (let i = 1; i < snaps.length; i++) {
+		const d = backlog(snaps[i]) - backlog(snaps[i - 1]);
+		out.push({
+			tsMs: snaps[i].tsMs,
+			enqueued: d > 0 ? d : 0,
+			dequeued: d < 0 ? -d : 0
+		});
+	}
+	return out;
+}
+
+/**
+ * Approximate enqueue/dequeue throughput per time bucket, derived from
+ * backlog changes between consecutive polls.
+ */
+export function buildSnapshotThroughput(
+	snaps: SqsDepthSnapshot[],
+	opts: SeriesOptions
+): SnapshotThroughputBucket[] {
+	if (snaps.length < 2) return [];
+	const window = opts.window ?? 'all';
+	const deltas = backlogDeltas(snaps);
+	const scoped = window === 'all' ? deltas : deltas.filter((d) => d.tsMs >= opts.nowMs - window);
+	if (scoped.length === 0) return [];
+
+	const rawStart = window === 'all' ? scoped[0].tsMs : opts.nowMs - window;
+	const rawEnd = window === 'all' ? scoped[scoped.length - 1].tsMs : opts.nowMs;
+	const { startMs, endMs } = normalizeExtent({ startMs: rawStart, endMs: rawEnd });
+	const bucketMs = clampBucketMs(
+		opts.bucketMs ?? niceBucketMs(endMs - startMs, opts.targetBuckets ?? 30),
+		startMs,
+		endMs
+	);
+	const alignedStart = Math.floor(startMs / bucketMs) * bucketMs;
+	const buckets = makeBuckets(alignedStart, endMs, bucketMs, (tsMs) => ({
+		tsMs,
+		enqueued: 0,
+		dequeued: 0
+	}));
+
+	for (const d of scoped) {
+		const idx = Math.floor((d.tsMs - alignedStart) / bucketMs);
+		const bucket = buckets[idx];
+		if (!bucket) continue;
+		bucket.enqueued += d.enqueued;
+		bucket.dequeued += d.dequeued;
+	}
+	return buckets;
+}
+
+/**
+ * Estimate average time-in-queue via Little's Law (W ≈ L / λ), where L is the
+ * time-weighted average backlog and λ is the observed dequeue rate. Returns a
+ * null estimate when nothing is being consumed.
+ */
+export function estimateTimeInQueue(snaps: SqsDepthSnapshot[], opts: SeriesOptions): QueueEstimate {
+	const window = opts.window ?? 'all';
+	const scoped = snapshotsInWindow(snaps, window, opts.nowMs);
+	if (scoped.length < 2) {
+		return {
+			avgBacklogMsgs: scoped.length ? backlog(scoped[0]) : null,
+			dequeuedTotal: 0,
+			dequeueRatePerSec: null,
+			estWaitMs: null,
+			windowMs: 0
+		};
+	}
+
+	let weighted = 0;
+	let elapsed = 0;
+	for (let i = 1; i < scoped.length; i++) {
+		const dt = scoped[i].tsMs - scoped[i - 1].tsMs;
+		if (dt <= 0) continue;
+		weighted += ((backlog(scoped[i]) + backlog(scoped[i - 1])) / 2) * dt;
+		elapsed += dt;
+	}
+	const avgBacklogMsgs = elapsed ? weighted / elapsed : backlog(scoped[scoped.length - 1]);
+	const dequeuedTotal = backlogDeltas(scoped).reduce((a, b) => a + b.dequeued, 0);
+	const windowMs = scoped[scoped.length - 1].tsMs - scoped[0].tsMs;
+	const dequeueRatePerSec = windowMs > 0 ? dequeuedTotal / (windowMs / 1000) : null;
+	const estWaitMs =
+		dequeueRatePerSec && dequeueRatePerSec > 0 ? (avgBacklogMsgs / dequeueRatePerSec) * 1000 : null;
+
+	return { avgBacklogMsgs, dequeuedTotal, dequeueRatePerSec, estWaitMs, windowMs };
+}
+
+/** Window + downsample snapshots for the depth chart (keeps the latest point). */
+export function buildDepthSeries(
+	snaps: SqsDepthSnapshot[],
+	opts: DepthSeriesOptions
+): SqsDepthSnapshot[] {
+	const window = opts.window ?? 'all';
+	const scoped = snapshotsInWindow(snaps, window, opts.nowMs);
+	const max = opts.maxPoints ?? 400;
+	if (scoped.length <= max) return scoped;
+
+	const stride = Math.ceil(scoped.length / max);
+	const out: SqsDepthSnapshot[] = [];
+	for (let i = 0; i < scoped.length; i += stride) out.push(scoped[i]);
+	const last = scoped[scoped.length - 1];
+	if (out[out.length - 1] !== last) out.push(last);
+	return out;
 }
 
 // ── internals ──────────────────────────────────────────────────────────────

@@ -4,10 +4,19 @@ import {
 	buildLatencySeries,
 	buildLatencyHistogram,
 	computeLatencyPercentiles,
+	buildSnapshotThroughput,
+	estimateTimeInQueue,
+	buildDepthSeries,
+	snapshotsInWindowCount,
 	filterByWindow,
 	niceBucketMs
 } from '$lib/floci/sqs-metrics';
 import type { SqsEventType, SqsHistoryEvent } from '$lib/types/sqs-history';
+import type { SqsDepthSnapshot } from '$lib/types/sqs';
+
+function snap(tsMs: number, visible: number, notVisible = 0, delayed = 0): SqsDepthSnapshot {
+	return { tsMs, visible, notVisible, delayed };
+}
 
 const T = 1_000_000_000_000; // round, divisible by all bucket sizes used here
 
@@ -138,6 +147,85 @@ describe('sqs-metrics', () => {
 				p95Ms: null,
 				maxMs: null
 			});
+		});
+	});
+
+	describe('buildSnapshotThroughput', () => {
+		it('needs at least two snapshots', () => {
+			expect(buildSnapshotThroughput([snap(T, 5)], { window: 'all', nowMs: T })).toEqual([]);
+		});
+
+		it('derives enqueue/dequeue flow from backlog deltas', () => {
+			const snaps = [snap(T, 0), snap(T + 1_000, 10), snap(T + 2_000, 30), snap(T + 3_000, 5)];
+			const series = buildSnapshotThroughput(snaps, {
+				window: 'all',
+				nowMs: T + 3_000,
+				bucketMs: 1_000
+			});
+			expect(series).toEqual([
+				{ tsMs: T + 1_000, enqueued: 10, dequeued: 0 },
+				{ tsMs: T + 2_000, enqueued: 20, dequeued: 0 },
+				{ tsMs: T + 3_000, enqueued: 0, dequeued: 25 }
+			]);
+		});
+
+		it('counts in-flight and delayed toward backlog', () => {
+			// total goes 0 -> 10 (all in-flight/delayed) -> 0
+			const snaps = [snap(T, 0), snap(T + 1_000, 0, 6, 4), snap(T + 2_000, 0)];
+			const series = buildSnapshotThroughput(snaps, {
+				window: 'all',
+				nowMs: T + 2_000,
+				bucketMs: 1_000
+			});
+			expect(series.reduce((a, b) => a + b.enqueued, 0)).toBe(10);
+			expect(series.reduce((a, b) => a + b.dequeued, 0)).toBe(10);
+		});
+	});
+
+	describe('estimateTimeInQueue', () => {
+		it('applies Little’s Law over a draining queue', () => {
+			const snaps = [snap(T, 100), snap(T + 10_000, 0)];
+			expect(estimateTimeInQueue(snaps, { window: 'all', nowMs: T + 10_000 })).toEqual({
+				avgBacklogMsgs: 50,
+				dequeuedTotal: 100,
+				dequeueRatePerSec: 10,
+				estWaitMs: 5_000,
+				windowMs: 10_000
+			});
+		});
+
+		it('returns a null wait when nothing is consumed', () => {
+			const snaps = [snap(T, 0), snap(T + 1_000, 10)];
+			const est = estimateTimeInQueue(snaps, { window: 'all', nowMs: T + 1_000 });
+			expect(est.dequeuedTotal).toBe(0);
+			expect(est.estWaitMs).toBeNull();
+		});
+
+		it('handles a single snapshot', () => {
+			const est = estimateTimeInQueue([snap(T, 5)], { window: 'all', nowMs: T });
+			expect(est).toEqual({
+				avgBacklogMsgs: 5,
+				dequeuedTotal: 0,
+				dequeueRatePerSec: null,
+				estWaitMs: null,
+				windowMs: 0
+			});
+		});
+	});
+
+	describe('buildDepthSeries / snapshotsInWindowCount', () => {
+		const snaps = [snap(T, 1), snap(T + 1_000, 2), snap(T + 2_000, 3)];
+
+		it('passes through small series and filters by window', () => {
+			expect(buildDepthSeries(snaps, { window: 'all', nowMs: T + 2_000 })).toHaveLength(3);
+			expect(snapshotsInWindowCount(snaps, 1_500, T + 2_000)).toBe(2);
+		});
+
+		it('downsamples large series while keeping the latest point', () => {
+			const many = Array.from({ length: 1_000 }, (_, i) => snap(T + i * 1_000, i));
+			const ds = buildDepthSeries(many, { window: 'all', nowMs: T + 1_000_000, maxPoints: 100 });
+			expect(ds.length).toBeLessThanOrEqual(101);
+			expect(ds[ds.length - 1]).toBe(many[many.length - 1]);
 		});
 	});
 });
