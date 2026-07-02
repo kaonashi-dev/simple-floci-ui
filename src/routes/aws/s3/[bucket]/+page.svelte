@@ -29,6 +29,7 @@
 	} from '$lib/floci/s3';
 	import { formatBytes } from '$lib/utils/formatBytes';
 	import { formatDate } from '$lib/utils/formatDate';
+	import { openObjectPreview } from '$lib/utils/objectPreview';
 
 	let { data } = $props();
 
@@ -78,10 +79,7 @@
 	async function previewFile(key: string) {
 		try {
 			const obj = await getObject(data.bucket, key);
-			const blob = new Blob([obj.body as BlobPart], { type: obj.contentType ?? 'application/octet-stream' });
-			const url = URL.createObjectURL(blob);
-			window.open(url, '_blank');
-			setTimeout(() => URL.revokeObjectURL(url), 60_000);
+			openObjectPreview(obj.body as BlobPart, obj.contentType);
 		} catch (e) {
 			toast.error('Preview failed', e instanceof Error ? e.message : String(e));
 		}
