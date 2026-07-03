@@ -63,6 +63,24 @@ export function saveSnapshots(queueName: string, snaps: SqsDepthSnapshot[]): voi
 	}
 }
 
+/**
+ * Serialize a queue's collected snapshots as a pretty-printed JSON document,
+ * wrapped with a little metadata so an exported file is self-describing. Used by
+ * the metrics page's "Export" action to save the history off to a file.
+ */
+export function serializeSnapshots(queueName: string, snaps: SqsDepthSnapshot[]): string {
+	return JSON.stringify(
+		{
+			queue: queueName,
+			exportedAtMs: Date.now(),
+			count: snaps.length,
+			snapshots: snaps
+		},
+		null,
+		2
+	);
+}
+
 export function clearSnapshots(queueName: string): void {
 	if (!browser) return;
 	try {
