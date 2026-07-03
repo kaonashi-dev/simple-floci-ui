@@ -4,16 +4,25 @@
 	import PlayIcon from '@lucide/svelte/icons/play';
 	import RefreshCwIcon from '@lucide/svelte/icons/refresh-cw';
 	import Trash2Icon from '@lucide/svelte/icons/trash-2';
+	import DownloadIcon from '@lucide/svelte/icons/download';
 	import { Button } from '$lib/components/ui/button';
 	import ErrorPanel from '$lib/components/ErrorPanel.svelte';
 	import LineChart from '$lib/components/charts/LineChart.svelte';
 	import BarChart from '$lib/components/charts/BarChart.svelte';
+	import LiveStat from '$lib/components/sqs/LiveStat.svelte';
 	import { getQueueUrl, getQueueMetrics } from '$lib/floci/sqs';
-	import { loadSnapshots, saveSnapshots, clearSnapshots, pruneSnapshots } from '$lib/floci/sqs-snapshots';
+	import {
+		loadSnapshots,
+		saveSnapshots,
+		clearSnapshots,
+		pruneSnapshots,
+		serializeSnapshots
+	} from '$lib/floci/sqs-snapshots';
 	import {
 		buildDepthSeries,
 		buildSnapshotThroughput,
 		estimateTimeInQueue,
+		summarizeDepthWindow,
 		snapshotsInWindowCount,
 		WINDOW_PRESETS,
 		type MetricWindow
@@ -83,6 +92,24 @@
 		snapshots = [];
 	}
 
+	// Save the full collected history off to a JSON file the developer can keep.
+	function exportHistory() {
+		if (!snapshots.length) return;
+		const json = serializeSnapshots(data.name, snapshots);
+		const blob = new Blob([json], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `${data.name.replace(/[^\w.-]+/g, '_')}-sqs-history.json`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
+	// Wall-clock span of everything retained in storage (all ranges).
+	const storedSpanMs = $derived(
+		snapshots.length > 1 ? snapshots[snapshots.length - 1].tsMs - snapshots[0].tsMs : 0
+	);
+
 	// ── derived series ───────────────────────────────────────────────────────
 	const depthPoints = $derived(buildDepthSeries(snapshots, { window: range, nowMs: now }));
 	const depthSeries = $derived([
@@ -104,6 +131,18 @@
 		}
 	]);
 
+	// Per-level spark arrays + windowed roll-up powering the live stat cards.
+	const summary = $derived(summarizeDepthWindow(snapshots, range, now));
+	const sparks = $derived({
+		visible: depthPoints.map((s) => s.visible),
+		notVisible: depthPoints.map((s) => s.notVisible),
+		delayed: depthPoints.map((s) => s.delayed),
+		backlog: depthPoints.map((s) => s.visible + s.notVisible + s.delayed)
+	});
+	const backlogNow = $derived(
+		live ? live.visible + live.notVisible + live.delayed : null
+	);
+
 	const throughput = $derived(buildSnapshotThroughput(snapshots, { window: range, nowMs: now }));
 	const throughputSeries = [
 		{ name: 'Enqueued', color: C.enqueued },
@@ -115,6 +154,16 @@
 	const totals = $derived({
 		enqueued: throughput.reduce((a, b) => a + b.enqueued, 0),
 		dequeued: throughput.reduce((a, b) => a + b.dequeued, 0)
+	});
+	// Rates over the observed span of the current range.
+	const rangeSpanMs = $derived(
+		summary.firstTsMs != null && summary.lastTsMs != null
+			? summary.lastTsMs - summary.firstTsMs
+			: 0
+	);
+	const throughputRates = $derived({
+		enqueued: rangeSpanMs > 0 ? totals.enqueued / (rangeSpanMs / 1000) : null,
+		dequeued: rangeSpanMs > 0 ? totals.dequeued / (rangeSpanMs / 1000) : null
 	});
 
 	const estimate = $derived(estimateTimeInQueue(snapshots, { window: range, nowMs: now }));
@@ -206,6 +255,15 @@
 				<Button
 					variant="ghost"
 					size="sm"
+					class="h-8 px-2 text-xs"
+					disabled={snapshots.length === 0}
+					onclick={exportHistory}
+				>
+					<DownloadIcon class="size-3.5" /> Export
+				</Button>
+				<Button
+					variant="ghost"
+					size="sm"
 					class="h-8 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
 					onclick={clearHistory}
 				>
@@ -218,40 +276,52 @@
 			<ErrorPanel message="Could not read live metrics" hint={liveError} />
 		{/if}
 
-		<div class="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-			<div class="console-surface p-3">
-				<p class="console-subtle-label">Available</p>
-				<p class="mt-1 font-mono text-2xl font-semibold" style="color:{C.visible}">
-					{live?.visible ?? '—'}
-				</p>
-				<p class="text-[10px] text-muted-foreground/60">messages waiting</p>
-			</div>
-			<div class="console-surface p-3">
-				<p class="console-subtle-label">In-flight</p>
-				<p class="mt-1 font-mono text-2xl font-semibold" style="color:{C.inflight}">
-					{live?.notVisible ?? '—'}
-				</p>
-				<p class="text-[10px] text-muted-foreground/60">received, being processed</p>
-			</div>
-			<div class="console-surface p-3">
-				<p class="console-subtle-label">Delayed</p>
-				<p class="mt-1 font-mono text-2xl font-semibold" style="color:{C.delayed}">
-					{live?.delayed ?? '—'}
-				</p>
-				<p class="text-[10px] text-muted-foreground/60">not yet deliverable</p>
-			</div>
-			<div class="console-surface p-3">
-				<p class="console-subtle-label">Status</p>
-				<p class="mt-1 flex items-center gap-1.5 text-sm font-medium">
-					<span
-						class="inline-block h-2 w-2 rounded-full {running ? 'bg-emerald-500 pulse-dot' : 'bg-muted-foreground/40'}"
-					></span>
-					{running ? 'Live' : 'Paused'}
-				</p>
-				<p class="text-[10px] text-muted-foreground/60">
-					{sinceUpdated == null ? 'never updated' : `updated ${sinceUpdated}s ago`}
-				</p>
-			</div>
+		<div class="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+			<LiveStat
+				label="Available"
+				value={live?.visible ?? null}
+				color={C.visible}
+				hint="messages waiting"
+				spark={sparks.visible}
+				peak={summary.count ? summary.peak.visible : null}
+			/>
+			<LiveStat
+				label="In-flight"
+				value={live?.notVisible ?? null}
+				color={C.inflight}
+				hint="received, being processed"
+				spark={sparks.notVisible}
+				peak={summary.count ? summary.peak.notVisible : null}
+			/>
+			<LiveStat
+				label="Delayed"
+				value={live?.delayed ?? null}
+				color={C.delayed}
+				hint="not yet deliverable"
+				spark={sparks.delayed}
+				peak={summary.count ? summary.peak.delayed : null}
+			/>
+			<LiveStat
+				label="Total backlog"
+				value={backlogNow}
+				color="var(--color-foreground, currentColor)"
+				hint="available + in-flight + delayed"
+				spark={sparks.backlog}
+				peak={summary.count ? summary.peak.backlog : null}
+			/>
+		</div>
+
+		<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground/70">
+			<span class="flex items-center gap-1.5">
+				<span
+					class="inline-block h-2 w-2 rounded-full {running ? 'bg-emerald-500 pulse-dot' : 'bg-muted-foreground/40'}"
+				></span>
+				<span class="font-medium text-foreground/80">{running ? 'Live' : 'Paused'}</span>
+			</span>
+			<span>·</span>
+			<span>{sinceUpdated == null ? 'never updated' : `updated ${sinceUpdated}s ago`}</span>
+			<span>·</span>
+			<span>polling every {(intervalMs / 1000).toFixed(0)}s</span>
 		</div>
 
 		<LineChart
@@ -296,10 +366,12 @@
 			<div class="console-surface p-3">
 				<p class="console-subtle-label">Enqueued</p>
 				<p class="mt-1 font-mono text-lg font-semibold" style="color:{C.enqueued}">≈ {totals.enqueued}</p>
+				<p class="text-[10px] text-muted-foreground/60">{ratePerMin(throughputRates.enqueued)} in this range</p>
 			</div>
 			<div class="console-surface p-3">
 				<p class="console-subtle-label">Dequeued</p>
 				<p class="mt-1 font-mono text-lg font-semibold" style="color:{C.dequeued}">≈ {totals.dequeued}</p>
+				<p class="text-[10px] text-muted-foreground/60">{ratePerMin(throughputRates.dequeued)} in this range</p>
 			</div>
 		</div>
 
@@ -350,9 +422,34 @@
 		{/if}
 	</section>
 
+	<!-- ════════════ SAVED HISTORY ════════════ -->
+	<div class="flex flex-wrap items-center justify-between gap-3 rounded border border-border/60 bg-muted/20 px-4 py-2.5">
+		<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground/70">
+			<span>
+				<span class="font-mono tabular-nums text-foreground/80">{snapshots.length.toLocaleString()}</span>
+				snapshot{snapshots.length !== 1 ? 's' : ''} saved
+			</span>
+			{#if storedSpanMs > 0}
+				<span>·</span>
+				<span>spanning {formatDuration(storedSpanMs)}</span>
+			{/if}
+			<span>·</span>
+			<span>kept 24h in this browser</span>
+		</div>
+		<Button
+			variant="outline"
+			size="sm"
+			class="h-7 px-2 text-xs"
+			disabled={snapshots.length === 0}
+			onclick={exportHistory}
+		>
+			<DownloadIcon class="size-3.5" /> Export JSON
+		</Button>
+	</div>
+
 	<p class="text-[11px] leading-relaxed text-muted-foreground/50">
 		SQS reports approximate depth levels, not exact send/receive counters, so throughput and wait
 		time are estimates derived from backlog changes between polls. History is collected while this
-		page is open and stored per-queue in this browser.
+		page is open and saved per-queue in this browser (surviving reloads); export it to keep a copy.
 	</p>
 </div>
