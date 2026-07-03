@@ -404,6 +404,86 @@ export function estimateTimeInQueue(snaps: SqsDepthSnapshot[], opts: SeriesOptio
 	return { avgBacklogMsgs, dequeuedTotal, dequeueRatePerSec, estWaitMs, windowMs };
 }
 
+export type DepthLevels = {
+	visible: number;
+	notVisible: number;
+	delayed: number;
+	backlog: number;
+};
+
+export type DepthWindowSummary = {
+	/** Most recent snapshot's depth levels in the window (nulls when empty). */
+	current: DepthLevels | null;
+	/** Highest value each level reached within the window. */
+	peak: DepthLevels;
+	/** Change in each level between the first and last snapshot in the window. */
+	change: DepthLevels;
+	/** Timestamp of the first / last snapshot in the window (null when empty). */
+	firstTsMs: number | null;
+	lastTsMs: number | null;
+	/** Number of snapshots that fall inside the window. */
+	count: number;
+};
+
+const ZERO_LEVELS: DepthLevels = { visible: 0, notVisible: 0, delayed: 0, backlog: 0 };
+
+function levelsOf(s: SqsDepthSnapshot): DepthLevels {
+	return {
+		visible: s.visible,
+		notVisible: s.notVisible,
+		delayed: s.delayed,
+		backlog: backlog(s)
+	};
+}
+
+/**
+ * Roll a windowed snapshot list up into the "at a glance" numbers the metrics
+ * page surfaces alongside the charts: the latest reading, the peak each level
+ * reached, and how much each level moved across the window. Pure + testable.
+ */
+export function summarizeDepthWindow(
+	snaps: SqsDepthSnapshot[],
+	window: MetricWindow,
+	nowMs: number
+): DepthWindowSummary {
+	const scoped = snapshotsInWindow(snaps, window, nowMs);
+	if (scoped.length === 0) {
+		return {
+			current: null,
+			peak: { ...ZERO_LEVELS },
+			change: { ...ZERO_LEVELS },
+			firstTsMs: null,
+			lastTsMs: null,
+			count: 0
+		};
+	}
+
+	const first = levelsOf(scoped[0]);
+	const last = levelsOf(scoped[scoped.length - 1]);
+	const peak: DepthLevels = { ...ZERO_LEVELS };
+	for (const s of scoped) {
+		const l = levelsOf(s);
+		if (l.visible > peak.visible) peak.visible = l.visible;
+		if (l.notVisible > peak.notVisible) peak.notVisible = l.notVisible;
+		if (l.delayed > peak.delayed) peak.delayed = l.delayed;
+		if (l.backlog > peak.backlog) peak.backlog = l.backlog;
+	}
+
+	return {
+		current: last,
+		peak,
+		change: {
+			visible: last.visible - first.visible,
+			notVisible: last.notVisible - first.notVisible,
+			delayed: last.delayed - first.delayed,
+			backlog: last.backlog - first.backlog
+		},
+		firstTsMs: scoped[0].tsMs,
+		lastTsMs: scoped[scoped.length - 1].tsMs,
+		count: scoped.length
+	};
+}
+
 /** Window + downsample snapshots for the depth chart (keeps the latest point). */
 export function buildDepthSeries(
 	snaps: SqsDepthSnapshot[],

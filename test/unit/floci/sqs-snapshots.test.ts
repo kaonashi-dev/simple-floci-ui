@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pruneSnapshots } from '$lib/floci/sqs-snapshots';
+import { pruneSnapshots, serializeSnapshots } from '$lib/floci/sqs-snapshots';
 import type { SqsDepthSnapshot } from '$lib/types/sqs';
 
 function snap(tsMs: number): SqsDepthSnapshot {
@@ -20,6 +20,17 @@ describe('sqs-snapshots', () => {
 
 		it('keeps everything when within limits', () => {
 			expect(pruneSnapshots(snaps, 350, 10_000, 10)).toHaveLength(3);
+		});
+	});
+
+	describe('serializeSnapshots', () => {
+		it('wraps the snapshots in a self-describing JSON document', () => {
+			const snaps = [snap(100), snap(200)];
+			const parsed = JSON.parse(serializeSnapshots('my-queue', snaps));
+			expect(parsed.queue).toBe('my-queue');
+			expect(parsed.count).toBe(2);
+			expect(parsed.snapshots).toEqual(snaps);
+			expect(typeof parsed.exportedAtMs).toBe('number');
 		});
 	});
 });

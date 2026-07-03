@@ -7,6 +7,7 @@ import {
 	buildSnapshotThroughput,
 	estimateTimeInQueue,
 	buildDepthSeries,
+	summarizeDepthWindow,
 	snapshotsInWindowCount,
 	filterByWindow,
 	niceBucketMs
@@ -226,6 +227,42 @@ describe('sqs-metrics', () => {
 			const ds = buildDepthSeries(many, { window: 'all', nowMs: T + 1_000_000, maxPoints: 100 });
 			expect(ds.length).toBeLessThanOrEqual(101);
 			expect(ds[ds.length - 1]).toBe(many[many.length - 1]);
+		});
+	});
+
+	describe('summarizeDepthWindow', () => {
+		it('returns an empty summary when there are no snapshots in the window', () => {
+			expect(summarizeDepthWindow([], 'all', T)).toEqual({
+				current: null,
+				peak: { visible: 0, notVisible: 0, delayed: 0, backlog: 0 },
+				change: { visible: 0, notVisible: 0, delayed: 0, backlog: 0 },
+				firstTsMs: null,
+				lastTsMs: null,
+				count: 0
+			});
+		});
+
+		it('reports current, peak and first→last change across all levels', () => {
+			const snaps = [
+				snap(T, 5, 1, 0), // backlog 6
+				snap(T + 1_000, 12, 3, 2), // backlog 17 (peak backlog)
+				snap(T + 2_000, 4, 8, 1) // backlog 13
+			];
+			const s = summarizeDepthWindow(snaps, 'all', T + 2_000);
+			expect(s.current).toEqual({ visible: 4, notVisible: 8, delayed: 1, backlog: 13 });
+			expect(s.peak).toEqual({ visible: 12, notVisible: 8, delayed: 2, backlog: 17 });
+			expect(s.change).toEqual({ visible: -1, notVisible: 7, delayed: 1, backlog: 7 });
+			expect(s.firstTsMs).toBe(T);
+			expect(s.lastTsMs).toBe(T + 2_000);
+			expect(s.count).toBe(3);
+		});
+
+		it('scopes the roll-up to the requested window', () => {
+			const snaps = [snap(T, 100), snap(T + 9_000, 3), snap(T + 10_000, 7)];
+			const s = summarizeDepthWindow(snaps, 5_000, T + 10_000);
+			expect(s.count).toBe(2);
+			expect(s.peak.visible).toBe(7); // the old 100 is outside the window
+			expect(s.current?.visible).toBe(7);
 		});
 	});
 });
