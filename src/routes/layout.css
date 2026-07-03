@@ -368,3 +368,53 @@
 .pulse-dot {
   animation: pulse-dot 2.4s ease-in-out infinite;
 }
+
+/* ── live-metric reactions ─────────────────────────────────────────────── */
+@keyframes value-pop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+@keyframes flash-up {
+  0%   { background: rgb(16 185 129 / 0.24); }  /* emerald-500 */
+  100% { background: transparent; }
+}
+
+@keyframes flash-down {
+  0%   { background: rgb(244 63 94 / 0.24); }  /* rose-500 */
+  100% { background: transparent; }
+}
+
+@keyframes delta-pop {
+  0%   { opacity: 0; transform: translateY(4px) scale(0.9); }
+  18%  { opacity: 1; transform: translateY(0) scale(1); }
+  78%  { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-4px) scale(0.96); }
+}
+
+.animate-value-pop {
+  animation: value-pop 0.42s ease-out both;
+}
+
+.flash-up {
+  animation: flash-up 1.1s ease-out both;
+}
+
+.flash-down {
+  animation: flash-down 1.1s ease-out both;
+}
+
+.animate-delta-pop {
+  animation: delta-pop 1.6s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-value-pop,
+  .flash-up,
+  .flash-down,
+  .animate-delta-pop {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
